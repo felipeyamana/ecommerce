@@ -1,1 +1,33 @@
+<header class="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
+  <nav
+    class="mx-auto flex min-h-18 w-[min(calc(100%-1rem),75rem)] items-center justify-between sm:w-[min(calc(100%-2rem),75rem)]"
+    aria-label="Primary navigation"
+  >
+    <a
+      class="text-xl font-extrabold tracking-tight text-slate-900 no-underline"
+      routerLink="/"
+      aria-label="ECommerce home"
+    >
+      ECommerce
+    </a>
+
+    <div class="flex items-center gap-2.5">
+      <a
+        class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 no-underline transition hover:border-slate-400 hover:bg-slate-100 sm:px-4"
+        routerLink="/login"
+        routerLinkActive="border-slate-400 bg-slate-100"
+      >
+        Log in
+      </a>
+      <a
+        class="rounded-xl bg-blue-700 px-3 py-2.5 text-sm font-bold text-white no-underline transition hover:bg-blue-800 sm:px-4"
+        routerLink="/register"
+        routerLinkActive="bg-blue-800"
+      >
+        Sign up
+      </a>
+    </div>
+  </nav>
+</header>
+
 <router-outlet />

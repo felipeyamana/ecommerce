@@ -1,10 +1,115 @@
-<main class="auth-shell"><section class="auth-card" aria-labelledby="auth-title">
-  <header><p class="eyebrow">ECommerce</p><h1 id="auth-title">{{ mode() === 'login' ? 'Welcome back' : 'Create your account' }}</h1><p>{{ mode() === 'login' ? 'Sign in to continue.' : 'Register to get started.' }}</p></header>
-  <div class="tabs" role="tablist"><button type="button" [class.active]="mode() === 'login'" (click)="mode.set('login'); error.set('')">Sign in</button><button type="button" [class.active]="mode() === 'register'" (click)="mode.set('register'); error.set('')">Register</button></div>
-  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-  @if (mode() === 'login') {
-    <form [formGroup]="loginForm" (ngSubmit)="submitLogin()"><label>Email<input type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" /></label><label>Password<input type="password" formControlName="password" autocomplete="current-password" /></label><label class="checkbox"><input type="checkbox" formControlName="rememberMe" /> Keep me signed in</label><button class="submit" type="submit" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Sign in' }}</button></form>
-  } @else {
-    <form [formGroup]="registerForm" (ngSubmit)="submitRegistration()"><label>Email<input type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" /></label><label>Password<input type="password" formControlName="password" autocomplete="new-password" /><small>At least 8 characters.</small></label><label>Confirm password<input type="password" formControlName="confirmPassword" autocomplete="new-password" /></label><button class="submit" type="submit" [disabled]="busy()">{{ busy() ? 'Creating account…' : 'Create account' }}</button></form>
-  }
-</section></main>
+<main
+  class="grid min-h-[calc(100vh-4.5rem)] place-items-center bg-[radial-gradient(circle_at_top_left,#e7edff,transparent_45%)] px-4 py-12 max-sm:place-items-start max-sm:pt-6"
+>
+  <section
+    class="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_1.5rem_4rem_rgb(32_50_90/10%)] sm:p-9"
+    aria-labelledby="auth-title"
+  >
+    <header class="mb-6">
+      <p class="m-0 text-xs font-extrabold tracking-widest text-blue-700 uppercase">ECommerce</p>
+      <h1 id="auth-title" class="my-1 text-3xl font-bold tracking-tight text-slate-900">
+        {{ mode === 'login' ? 'Welcome back' : 'Create your account' }}
+      </h1>
+      <p class="m-0 text-slate-500">
+        {{ mode === 'login' ? 'Sign in to continue shopping.' : 'Sign up to get started.' }}
+      </p>
+    </header>
+
+    @if (error()) {
+      <p class="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-800" role="alert">{{ error() }}</p>
+    }
+
+    @if (mode === 'login') {
+      <form class="grid gap-2" [formGroup]="loginForm" (ngSubmit)="submitLogin()" novalidate>
+        <label class="mt-2 text-sm font-bold text-slate-800" for="login-email">Email</label>
+        <input
+          class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+          id="login-email"
+          type="email"
+          formControlName="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+        />
+        @if (loginForm.controls.email.touched && loginForm.controls.email.invalid) {
+          <small class="text-rose-700">Enter a valid email address.</small>
+        }
+
+        <label class="mt-2 text-sm font-bold text-slate-800" for="login-password">Password</label>
+        <input
+          class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+          id="login-password"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+        />
+        @if (loginForm.controls.password.touched && loginForm.controls.password.invalid) {
+          <small class="text-rose-700">Password is required.</small>
+        }
+
+        <label class="my-1 flex items-center gap-2 text-sm text-slate-700" for="remember-me">
+          <input class="size-4 accent-blue-700" id="remember-me" type="checkbox" formControlName="rememberMe" />
+          Keep me signed in
+        </label>
+
+        <button
+          class="mt-2 rounded-xl bg-blue-700 px-4 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+          type="submit"
+          [disabled]="busy()"
+        >
+          {{ busy() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+
+      <p class="mt-6 mb-0 text-center text-sm text-slate-500">
+        New here?
+        <a class="font-bold text-blue-700 hover:text-blue-800" routerLink="/register">Create an account</a>
+      </p>
+    } @else {
+      <form class="grid gap-2" [formGroup]="registerForm" (ngSubmit)="submitRegistration()" novalidate>
+        <label class="mt-2 text-sm font-bold text-slate-800" for="register-email">Email</label>
+        <input
+          class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+          id="register-email"
+          type="email"
+          formControlName="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+        />
+        @if (registerForm.controls.email.touched && registerForm.controls.email.invalid) {
+          <small class="text-rose-700">Enter a valid email address.</small>
+        }
+
+        <label class="mt-2 text-sm font-bold text-slate-800" for="register-password">Password</label>
+        <input
+          class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+          id="register-password"
+          type="password"
+          formControlName="password"
+          autocomplete="new-password"
+        />
+        <small class="text-slate-500">Use at least 8 characters.</small>
+
+        <label class="mt-2 text-sm font-bold text-slate-800" for="confirm-password">Confirm password</label>
+        <input
+          class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+          id="confirm-password"
+          type="password"
+          formControlName="confirmPassword"
+          autocomplete="new-password"
+        />
+
+        <button
+          class="mt-3 rounded-xl bg-blue-700 px-4 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+          type="submit"
+          [disabled]="busy()"
+        >
+          {{ busy() ? 'Creating account…' : 'Create account' }}
+        </button>
+      </form>
+
+      <p class="mt-6 mb-0 text-center text-sm text-slate-500">
+        Already registered? <a class="font-bold text-blue-700 hover:text-blue-800" routerLink="/login">Log in</a>
+      </p>
+    }
+  </section>
+</main>
