@@ -7,7 +7,7 @@ export interface RegisterRequest { email: string; password: string; confirmPassw
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'https://localhost:7001/api/auth';
+  private readonly apiUrl = '/api/auth';
   initializeCsrf() { return this.http.get<void>(`${this.apiUrl}/csrf`); }
   login(request: LoginRequest) { return this.http.post<void>(`${this.apiUrl}/login`, request); }
   register(request: RegisterRequest) { return this.http.post<void>(`${this.apiUrl}/register`, request); }
