@@ -1,5 +1,6 @@
 using ECommerce.Api.Data;
 using ECommerce.Api.Models;
+using ECommerce.Api.Products;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,25 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+builder.Services
+    .AddOptions<ProductsApiOptions>()
+    .Bind(builder.Configuration.GetSection(ProductsApiOptions.SectionName))
+    .Validate(options => options.BaseUrl is { IsAbsoluteUri: true }, "ProductsApi:BaseUrl must be an absolute URL.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ApiKey), "ProductsApi:ApiKey is required.")
+    .ValidateOnStart();
+
+builder.Services.AddHttpClient("ProductsApiAuth", (serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
+    client.BaseAddress = options.BaseUrl;
+});
+builder.Services.AddSingleton<ProductsApiTokenProvider>();
+builder.Services.AddHttpClient<IProductsApiClient, ProductsApiClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
+    client.BaseAddress = options.BaseUrl;
+});
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -61,11 +81,22 @@ builder.Services.AddAntiforgery(options =>
 
 builder.Services.AddCors(options =>
     options.AddPolicy("AngularDev", policy =>
+    {
         policy
-            .WithOrigins("https://localhost:4200", "http://localhost:4200")
+            .SetIsOriginAllowed(origin =>
+            {
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return false;
+                }
+
+                return uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                    uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials()));
+            .AllowCredentials();
+    }));
 
 var app = builder.Build();
 
@@ -74,7 +105,10 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("AngularDev");
 app.UseAuthentication();
 app.UseAuthorization();

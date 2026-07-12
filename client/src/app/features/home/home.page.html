@@ -1,0 +1,116 @@
+<main class="mx-auto w-[min(calc(100%-2rem),75rem)] py-10 sm:py-14">
+  <header class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="mb-2 text-xs font-extrabold tracking-widest text-blue-700 uppercase">Our catalog</p>
+      <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Products</h1>
+      <p class="mt-2 mb-0 text-slate-500">Browse the latest products available in our catalog.</p>
+    </div>
+
+    @if (products()) {
+      <p class="m-0 text-sm text-slate-500">
+        {{ products()!.totalCount | number }} {{ products()!.totalCount === 1 ? 'product' : 'products' }}
+      </p>
+    }
+  </header>
+
+  @if (loading()) {
+    <section class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading products" aria-busy="true">
+      @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+        <div class="h-64 animate-pulse rounded-2xl border border-slate-200 bg-white p-6">
+          <div class="mb-5 h-4 w-24 rounded bg-slate-200"></div>
+          <div class="mb-3 h-6 w-4/5 rounded bg-slate-200"></div>
+          <div class="mb-2 h-4 w-full rounded bg-slate-100"></div>
+          <div class="h-4 w-2/3 rounded bg-slate-100"></div>
+        </div>
+      }
+    </section>
+  } @else if (error()) {
+    <section class="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center" role="alert">
+      <h2 class="mt-0 text-lg font-bold text-rose-900">Products unavailable</h2>
+      <p class="text-rose-800">{{ error() }}</p>
+      <button
+        class="rounded-xl bg-rose-800 px-4 py-2.5 font-bold text-white transition hover:bg-rose-900"
+        type="button"
+        (click)="loadPage(products()?.pageNumber ?? 1)"
+      >
+        Try again
+      </button>
+    </section>
+  } @else if (products()?.items?.length) {
+    <section class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Product listing">
+      @for (product of products()!.items; track product.id) {
+        <article class="flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          <div class="-mx-6 -mt-6 mb-5 aspect-[16/10] overflow-hidden rounded-t-2xl bg-slate-100">
+            <img
+              class="size-full object-cover"
+              [src]="categoryImage(product.subCategoryId)"
+              [alt]="product.categoryName + ' category placeholder'"
+              width="1254"
+              height="1254"
+              loading="lazy"
+            />
+          </div>
+
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+              {{ product.subCategoryName || product.categoryName }}
+            </span>
+            @if (product.averageRating !== null) {
+              <span class="text-sm font-semibold text-amber-600" [attr.aria-label]="product.averageRating + ' out of 5 stars'">
+                ★ {{ product.averageRating | number: '1.1-1' }}
+              </span>
+            }
+          </div>
+
+          <p class="mb-1 text-sm font-semibold text-slate-500">{{ product.brand || 'ECommerce' }}</p>
+          <h2 class="my-0 text-xl font-bold tracking-tight text-slate-900">{{ product.name }}</h2>
+          <p class="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+            {{ product.description || 'No description is available for this product.' }}
+          </p>
+
+          <div class="mt-auto flex items-end gap-2 pt-5">
+            @if (product.currentPrice !== null) {
+              <strong class="text-2xl text-slate-900">
+                {{ product.currentPrice | currency: (product.priceCurrencyCode || 'USD') }}
+              </strong>
+              @if (product.listPrice !== null && product.listPrice > product.currentPrice) {
+                <span class="pb-0.5 text-sm text-slate-400 line-through">
+                  {{ product.listPrice | currency: (product.priceCurrencyCode || 'USD') }}
+                </span>
+              }
+            } @else {
+              <span class="font-semibold text-slate-500">Price unavailable</span>
+            }
+          </div>
+        </article>
+      }
+    </section>
+
+    @if (products()!.totalPages > 1) {
+      <nav class="mt-8 flex items-center justify-center gap-4" aria-label="Product pages">
+        <button
+          class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          type="button"
+          [disabled]="products()!.pageNumber === 1"
+          (click)="loadPage(products()!.pageNumber - 1)"
+        >
+          Previous
+        </button>
+        <span class="text-sm text-slate-500">Page {{ products()!.pageNumber }} of {{ products()!.totalPages }}</span>
+        <button
+          class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          type="button"
+          [disabled]="products()!.pageNumber === products()!.totalPages"
+          (click)="loadPage(products()!.pageNumber + 1)"
+        >
+          Next
+        </button>
+      </nav>
+    }
+  } @else {
+    <section class="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+      <h2 class="mt-0 text-xl font-bold text-slate-900">No products yet</h2>
+      <p class="mb-0 text-slate-500">Products will appear here when they are added to the catalog.</p>
+    </section>
+  }
+</main>
