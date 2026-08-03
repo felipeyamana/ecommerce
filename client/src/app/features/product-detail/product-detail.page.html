@@ -1,0 +1,126 @@
+<main class="mx-auto w-[min(calc(100%-2rem),75rem)] py-6 sm:py-10">
+  @if (loading()) {
+    <section class="animate-pulse" aria-label="Loading product" aria-busy="true">
+      <div class="mb-8 h-4 w-56 rounded bg-slate-200"></div>
+      <div class="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_18rem]">
+        <div class="aspect-square rounded-2xl bg-slate-200"></div>
+        <div class="space-y-4">
+          <div class="h-4 w-28 rounded bg-slate-200"></div>
+          <div class="h-9 w-full rounded bg-slate-200"></div>
+          <div class="h-9 w-3/4 rounded bg-slate-200"></div>
+          <div class="h-5 w-44 rounded bg-slate-100"></div>
+        </div>
+        <div class="h-72 rounded-2xl bg-slate-200"></div>
+      </div>
+    </section>
+  } @else if (error()) {
+    <section class="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm" role="alert">
+      <div class="mx-auto mb-5 flex size-12 items-center justify-center rounded-full bg-slate-100 text-2xl" aria-hidden="true">?</div>
+      <h1 class="mt-0 text-2xl font-extrabold text-slate-900">Product unavailable</h1>
+      <p class="text-slate-600">{{ error() }}</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-3">
+        <a class="rounded-xl bg-blue-700 px-5 py-3 font-bold text-white no-underline hover:bg-blue-800" routerLink="/">Back to products</a>
+        @if (productId > 0) {
+          <button class="rounded-xl border border-slate-300 bg-white px-5 py-3 font-bold text-slate-700 hover:bg-slate-50" type="button" (click)="loadProduct()">Try again</button>
+        }
+      </div>
+    </section>
+  } @else if (product(); as item) {
+    <nav class="mb-6 flex items-center gap-2 text-sm text-slate-500" aria-label="Breadcrumb">
+      <a class="font-semibold text-blue-700 no-underline hover:underline" routerLink="/">Products</a>
+      <span aria-hidden="true">/</span>
+      <span>{{ item.categoryName }}</span>
+      @if (item.subCategoryName) {
+        <span aria-hidden="true">/</span>
+        <span class="truncate">{{ item.subCategoryName }}</span>
+      }
+    </nav>
+
+    <section class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_18rem] lg:gap-10">
+      <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <img
+          class="aspect-square size-full object-cover"
+          [src]="categoryImage(item.subCategoryId)"
+          [alt]="item.name"
+          width="1254"
+          height="1254"
+        />
+      </div>
+
+      <div>
+        <p class="mb-2 text-sm font-bold text-blue-700">{{ item.brand || 'ECommerce' }}</p>
+        <h1 class="my-0 text-3xl leading-tight font-extrabold tracking-tight text-slate-900 sm:text-4xl">{{ item.name }}</h1>
+
+        <div class="mt-4 flex flex-wrap items-center gap-3 border-b border-slate-200 pb-5 text-sm">
+          @if (item.averageRating !== null) {
+            <span class="font-bold text-slate-800">{{ item.averageRating | number: '1.1-1' }}</span>
+            <span class="tracking-wider text-amber-500" [attr.aria-label]="item.averageRating + ' out of 5 stars'">★★★★★</span>
+            @if (item.totalRatings !== null) {
+              <span class="text-blue-700">{{ item.totalRatings | number }} ratings</span>
+            }
+          } @else {
+            <span class="text-slate-500">Not yet rated</span>
+          }
+        </div>
+
+        <div class="py-5 lg:hidden">
+          @if (item.currentPrice !== null) {
+            <p class="m-0 text-3xl font-bold text-slate-900">{{ item.currentPrice | currency: (item.priceCurrencyCode || 'USD') }}</p>
+          }
+        </div>
+
+        <div class="pt-5">
+          <h2 class="mt-0 text-lg font-extrabold text-slate-900">About this item</h2>
+          <p class="m-0 leading-7 text-slate-600">{{ item.description || 'Product details are not available yet.' }}</p>
+        </div>
+
+        <dl class="mt-7 grid grid-cols-[auto_1fr] gap-x-5 gap-y-3 border-t border-slate-200 pt-6 text-sm">
+          <dt class="font-bold text-slate-800">Brand</dt>
+          <dd class="m-0 text-slate-600">{{ item.brand || 'Not specified' }}</dd>
+          <dt class="font-bold text-slate-800">Category</dt>
+          <dd class="m-0 text-slate-600">{{ item.subCategoryName || item.categoryName }}</dd>
+          @if (item.externalProductId) {
+            <dt class="font-bold text-slate-800">Product ID</dt>
+            <dd class="m-0 text-slate-600">{{ item.externalProductId }}</dd>
+          }
+        </dl>
+      </div>
+
+      <aside class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-label="Purchase options">
+        @if (item.currentPrice !== null) {
+          <div class="flex items-end gap-2">
+            <strong class="text-3xl text-slate-900">{{ item.currentPrice | currency: (item.priceCurrencyCode || 'USD') }}</strong>
+            @if (item.listPrice !== null && item.listPrice > item.currentPrice) {
+              <span class="pb-1 text-sm text-slate-400 line-through">{{ item.listPrice | currency: (item.priceCurrencyCode || 'USD') }}</span>
+            }
+          </div>
+        } @else {
+          <p class="mt-0 font-semibold text-slate-500">Price unavailable</p>
+        }
+
+        <p class="mt-5 mb-1 text-sm text-slate-600">Secure checkout</p>
+        <p class="mt-0 text-lg font-bold" [class.text-emerald-700]="item.isActive" [class.text-rose-700]="!item.isActive">
+          {{ item.isActive ? 'Available' : 'Currently unavailable' }}
+        </p>
+
+        <button
+          class="mt-5 w-full rounded-full bg-amber-400 px-5 py-3 font-bold text-slate-900 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+          type="button"
+          [disabled]="!item.isActive || item.currentPrice === null"
+          (click)="addToCart()"
+        >
+          {{ addedToCart() ? 'Added to cart' : 'Add to cart' }}
+        </button>
+
+        @if (addedToCart()) {
+          <p class="mb-0 text-center text-sm font-semibold text-emerald-700" role="status">This item was added to your cart.</p>
+        }
+
+        <div class="mt-6 border-t border-slate-200 pt-5 text-xs leading-5 text-slate-500">
+          <p class="m-0">Ships from <strong class="text-slate-700">ECommerce</strong></p>
+          <p class="mt-1 mb-0">Sold by <strong class="text-slate-700">ECommerce</strong></p>
+        </div>
+      </aside>
+    </section>
+  }
+</main>

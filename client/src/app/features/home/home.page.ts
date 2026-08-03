@@ -1,11 +1,12 @@
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { PagedProducts, ProductsService } from '../../core/products/products.service';
 
 @Component({
   selector: 'app-home-page',
-  imports: [CurrencyPipe, DecimalPipe],
+  imports: [CurrencyPipe, DecimalPipe, RouterLink],
   templateUrl: './home.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
