@@ -1,7 +1,9 @@
+using ECommerce.Api;
 using ECommerce.Api.Data;
 using ECommerce.Api.Models;
 using ECommerce.Api.Products;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +11,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services
     .AddOptions<ProductsApiOptions>()
@@ -17,17 +21,20 @@ builder.Services
     .Validate(options => !string.IsNullOrWhiteSpace(options.ApiKey), "ProductsApi:ApiKey is required.")
     .ValidateOnStart();
 
+builder.Services.AddTransient<ProductsApiExceptionHandler>();
 builder.Services.AddHttpClient("ProductsApiAuth", (serviceProvider, client) =>
 {
     var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
     client.BaseAddress = options.BaseUrl;
-});
+})
+    .AddHttpMessageHandler<ProductsApiExceptionHandler>();
 builder.Services.AddSingleton<ProductsApiTokenProvider>();
 builder.Services.AddHttpClient<IProductsApiClient, ProductsApiClient>((serviceProvider, client) =>
 {
     var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
     client.BaseAddress = options.BaseUrl;
-});
+})
+    .AddHttpMessageHandler<ProductsApiExceptionHandler>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -99,6 +106,8 @@ builder.Services.AddCors(options =>
     }));
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
