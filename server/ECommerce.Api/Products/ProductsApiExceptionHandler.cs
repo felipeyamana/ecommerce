@@ -1,3 +1,6 @@
+using Polly.CircuitBreaker;
+using Polly.Timeout;
+
 namespace ECommerce.Api.Products;
 
 internal sealed class ProductsApiExceptionHandler : DelegatingHandler
@@ -10,7 +13,8 @@ internal sealed class ProductsApiExceptionHandler : DelegatingHandler
         {
             return await base.SendAsync(request, cancellationToken);
         }
-        catch (HttpRequestException exception)
+        catch (Exception exception) when (
+            exception is HttpRequestException or TimeoutRejectedException or BrokenCircuitException)
         {
             throw new ProductsApiException("The products API request failed.", exception);
         }

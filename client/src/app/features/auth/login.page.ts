@@ -18,6 +18,7 @@ export class LoginPage {
   private readonly route = inject(ActivatedRoute);
 
   readonly mode = this.route.snapshot.data['mode'] as 'login' | 'register';
+  private readonly returnUrl = this.safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
   readonly busy = signal(false);
   readonly error = signal('');
 
@@ -32,12 +33,6 @@ export class LoginPage {
     password: ['', [Validators.required, Validators.minLength(8)]],
     confirmPassword: ['', Validators.required],
   });
-
-  constructor() {
-    this.auth.initializeCsrf().subscribe({
-      error: () => this.error.set('Unable to connect to the server. Please try again.'),
-    });
-  }
 
   submitLogin(): void {
     if (this.loginForm.invalid) {
@@ -69,9 +64,13 @@ export class LoginPage {
     this.error.set('');
 
     request.pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: () => void this.router.navigateByUrl('/'),
+      next: () => void this.router.navigateByUrl(this.returnUrl),
       error: (response) =>
         this.error.set(response.error?.message ?? 'Something went wrong. Please try again.'),
     });
+  }
+
+  private safeReturnUrl(value: string | null): string {
+    return value?.startsWith('/') && !value.startsWith('//') ? value : '/';
   }
 }

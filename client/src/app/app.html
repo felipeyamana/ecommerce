@@ -12,6 +12,20 @@
     </a>
 
     <div class="flex items-center gap-2.5">
+      @if (auth.isAuthenticated()) {
+        <a class="rounded-xl px-3 py-2.5 text-sm font-bold text-blue-700 no-underline hover:bg-blue-50" routerLink="/cart">
+          Cart@if (cart.totalQuantity() > 0) { ({{ cart.totalQuantity() }}) }
+        </a>
+        <span class="hidden text-sm text-slate-600 sm:inline">{{ auth.currentUser()?.email }}</span>
+        <button
+          class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 disabled:opacity-60 sm:px-4"
+          type="button"
+          [disabled]="loggingOut()"
+          (click)="logout()"
+        >
+          {{ loggingOut() ? 'Logging out…' : 'Log out' }}
+        </button>
+      } @else if (auth.initialized()) {
       <a
         class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 no-underline transition hover:border-slate-400 hover:bg-slate-100 sm:px-4"
         routerLink="/login"
@@ -26,6 +40,7 @@
       >
         Sign up
       </a>
+      }
     </div>
   </nav>
 </header>

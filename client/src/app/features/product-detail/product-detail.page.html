@@ -106,14 +106,17 @@
         <button
           class="mt-5 w-full rounded-full bg-amber-400 px-5 py-3 font-bold text-slate-900 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           type="button"
-          [disabled]="!item.isActive || item.currentPrice === null"
+          [disabled]="!item.isActive || item.currentPrice === null || addingToCart()"
           (click)="addToCart()"
         >
-          {{ addedToCart() ? 'Added to cart' : 'Add to cart' }}
+          {{ addingToCart() ? 'Adding…' : addedToCart() ? 'Added to cart' : 'Add to cart' }}
         </button>
 
         @if (addedToCart()) {
           <p class="mb-0 text-center text-sm font-semibold text-emerald-700" role="status">This item was added to your cart.</p>
+        }
+        @if (cartError()) {
+          <p class="mb-0 text-center text-sm font-semibold text-rose-700" role="alert">{{ cartError() }}</p>
         }
 
         <div class="mt-6 border-t border-slate-200 pt-5 text-xs leading-5 text-slate-500">

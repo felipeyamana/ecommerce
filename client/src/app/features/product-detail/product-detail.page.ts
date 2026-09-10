@@ -1,8 +1,10 @@
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../core/auth/auth.service';
+import { CartService } from '../../core/cart/cart.service';
 import { Product, ProductsService } from '../../core/products/products.service';
 
 @Component({
@@ -28,11 +30,16 @@ export class ProductDetailPage {
 
   private readonly productsService = inject(ProductsService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly cart = inject(CartService);
 
   readonly product = signal<Product | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
   readonly addedToCart = signal(false);
+  readonly addingToCart = signal(false);
+  readonly cartError = signal('');
   readonly productId = Number(this.route.snapshot.paramMap.get('id'));
 
   constructor() {
@@ -69,6 +76,21 @@ export class ProductDetailPage {
   }
 
   addToCart(): void {
-    this.addedToCart.set(true);
+    if (!this.auth.isAuthenticated()) {
+      void this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+      return;
+    }
+
+    this.addingToCart.set(true);
+    this.addedToCart.set(false);
+    this.cartError.set('');
+    this.cart
+      .add(this.productId)
+      .pipe(finalize(() => this.addingToCart.set(false)))
+      .subscribe({
+        next: () => this.addedToCart.set(true),
+        error: (error: HttpErrorResponse) =>
+          this.cartError.set(error.error?.message ?? 'We could not add this item. Please try again.'),
+      });
   }
 }

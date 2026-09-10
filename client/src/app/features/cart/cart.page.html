@@ -1,0 +1,75 @@
+<main class="mx-auto w-[min(calc(100%-2rem),75rem)] py-8 sm:py-12">
+  <div class="mb-7 flex items-end justify-between gap-4">
+    <div>
+      <p class="m-0 text-sm font-bold text-blue-700">Your order</p>
+      <h1 class="my-1 text-3xl font-extrabold tracking-tight text-slate-900">Shopping cart</h1>
+    </div>
+    <a class="text-sm font-bold text-blue-700 no-underline hover:underline" routerLink="/">Continue shopping</a>
+  </div>
+
+  @if (error()) {
+    <p class="mb-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-800" role="alert">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <section class="animate-pulse space-y-4" aria-label="Loading cart" aria-busy="true">
+      <div class="h-32 rounded-2xl bg-slate-200"></div>
+      <div class="h-32 rounded-2xl bg-slate-200"></div>
+    </section>
+  } @else if (cartService.cart(); as cart) {
+    @if (cart.items.length === 0) {
+      <section class="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+        <h2 class="mt-0 text-xl font-extrabold text-slate-900">Your cart is empty</h2>
+        <p class="text-slate-600">Browse the catalog and add something you like.</p>
+        <a class="mt-3 inline-block rounded-xl bg-blue-700 px-5 py-3 font-bold text-white no-underline hover:bg-blue-800" routerLink="/">Browse products</a>
+      </section>
+    } @else {
+      <div class="grid items-start gap-6 lg:grid-cols-[1fr_20rem]">
+        <section class="space-y-4" aria-label="Cart items">
+          @for (item of cart.items; track item.productId) {
+            <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                  <a class="font-extrabold text-slate-900 no-underline hover:text-blue-700" [routerLink]="['/products', item.productId]">
+                    {{ item.name || 'Product ' + item.productId }}
+                  </a>
+                  @if (!item.isAvailable) {
+                    <p class="mb-0 text-sm font-semibold text-rose-700">{{ item.unavailableReason || 'Currently unavailable' }}</p>
+                  } @else if (item.priceChanged) {
+                    <p class="mb-0 text-sm font-semibold text-amber-700">
+                      Price changed from {{ item.unitPriceAtAddition | currency: item.currencyAtAddition }} to
+                      {{ item.currentUnitPrice | currency: (item.currentCurrency || item.currencyAtAddition) }}.
+                    </p>
+                  }
+                </div>
+                <strong class="text-lg text-slate-900">
+                  {{ item.lineTotal | currency: (item.currentCurrency || item.currencyAtAddition) }}
+                </strong>
+              </div>
+
+              <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+                <span class="text-sm font-bold text-slate-700">Quantity</span>
+                <button class="size-9 rounded-lg border border-slate-300 bg-white font-bold" type="button" [disabled]="changingProductId() === item.productId || item.quantity <= 1" (click)="changeQuantity(item.productId, item.quantity - 1)">−</button>
+                <span class="min-w-6 text-center font-bold">{{ item.quantity }}</span>
+                <button class="size-9 rounded-lg border border-slate-300 bg-white font-bold" type="button" [disabled]="changingProductId() === item.productId || item.quantity >= 99" (click)="changeQuantity(item.productId, item.quantity + 1)">+</button>
+                <button class="ml-auto text-sm font-bold text-rose-700 hover:underline disabled:opacity-50" type="button" [disabled]="changingProductId() === item.productId" (click)="remove(item.productId)">Remove</button>
+              </div>
+            </article>
+          }
+        </section>
+
+        <aside class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="flex justify-between gap-4 text-slate-600"><span>Items</span><span>{{ cart.totalQuantity }}</span></div>
+          <div class="mt-4 flex justify-between gap-4 border-t border-slate-200 pt-4 text-xl font-extrabold text-slate-900">
+            <span>Subtotal</span><span>{{ cart.subtotal | currency: (cart.currency || 'USD') }}</span>
+          </div>
+          @if (hasChanges()) {
+            <p class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Review the highlighted item changes before checkout.</p>
+          }
+          <button class="mt-5 w-full rounded-full bg-amber-400 px-5 py-3 font-bold text-slate-900 disabled:opacity-50" type="button" disabled>Checkout coming next</button>
+          <button class="mt-3 w-full bg-transparent py-2 text-sm font-bold text-rose-700 hover:underline disabled:opacity-50" type="button" [disabled]="clearing()" (click)="clear()">{{ clearing() ? 'Clearing…' : 'Clear cart' }}</button>
+        </aside>
+      </div>
+    }
+  }
+</main>
