@@ -23,8 +23,16 @@ public sealed class AuthTests : IAsyncLifetime
     private readonly string _databaseName = "ECommerceAuthTests_" + Guid.NewGuid().ToString("N");
     private readonly TestSigningKey _signingKey = TestSigningKey.Create();
 
-    private string ConnectionString =>
-        $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;Pooling=False";
+    private string ConnectionString
+    {
+        get
+        {
+            var template = Environment.GetEnvironmentVariable("ECOMMERCE_TEST_CONNECTION_STRING");
+            return string.IsNullOrWhiteSpace(template)
+                ? $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;Pooling=False"
+                : template.Replace("{database}", _databaseName, StringComparison.Ordinal);
+        }
+    }
 
     public async Task InitializeAsync()
     {
