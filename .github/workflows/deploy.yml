@@ -126,7 +126,6 @@ jobs:
     needs: build
     environment:
       name: production
-      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
 
     steps:
       - name: Download app package
@@ -144,5 +143,5 @@ jobs:
       - name: Deploy app package
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
           package: ecommerce.zip
