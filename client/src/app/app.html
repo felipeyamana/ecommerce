@@ -1,48 +1,44 @@
-<header class="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
-  <nav
-    class="mx-auto flex min-h-18 w-[min(calc(100%-1rem),75rem)] items-center justify-between sm:w-[min(calc(100%-2rem),75rem)]"
-    aria-label="Primary navigation"
-  >
-    <a
-      class="text-xl font-extrabold tracking-tight text-slate-900 no-underline"
-      routerLink="/"
-      aria-label="ECommerce home"
-    >
-      ECommerce
-    </a>
+<header class="site-header">
+  <nav class="navigation" aria-label="Primary navigation">
+    <a class="brand" routerLink="/" aria-label="ECommerce home">ECommerce<span>.</span></a>
 
-    <div class="flex items-center gap-2.5">
+    <div class="catalog-links">
+      <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Products</a>
+      <details class="categories" #categories (keydown.escape)="categories.open = false" (focusout)="closeCategories($event, categories)">
+        <summary class="nav-link">Categories <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+        <div class="category-panel">
+          <span class="panel-label">Explore the catalog</span>
+          <a routerLink="/" (click)="categories.open = false">All products <span aria-hidden="true">→</span></a>
+          <p>Shopping by category is coming soon.</p>
+        </div>
+      </details>
+      <button class="nav-link" type="button" (click)="showComingSoon('Deals')">Deals</button>
+      <button class="nav-link" type="button" (click)="showComingSoon('New arrivals')">New Arrivals</button>
+    </div>
+
+    <form class="search" role="search" (submit)="search($event, searchInput.value)">
+      <button type="submit" aria-label="Search products"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg></button>
+      <input #searchInput type="search" name="q" placeholder="Search products..." aria-label="Search products" maxlength="200" />
+    </form>
+
+    <div class="account-links">
       @if (auth.isAuthenticated()) {
-        <a class="rounded-xl px-3 py-2.5 text-sm font-bold text-blue-700 no-underline hover:bg-blue-50" routerLink="/cart">
-          Cart@if (cart.totalQuantity() > 0) { ({{ cart.totalQuantity() }}) }
-        </a>
-        <span class="hidden text-sm text-slate-600 sm:inline">{{ auth.currentUser()?.email }}</span>
-        <button
-          class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 disabled:opacity-60 sm:px-4"
-          type="button"
-          [disabled]="loggingOut()"
-          (click)="logout()"
-        >
-          {{ loggingOut() ? 'Logging out…' : 'Log out' }}
-        </button>
+      <a class="cart-link" routerLink="/cart" routerLinkActive="active" [attr.aria-label]="cart.totalQuantity() > 0 ? 'Cart, ' + cart.totalQuantity() + ' items' : 'Cart'">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h2l2.5 12h12l2-8H5" /><circle cx="8" cy="20" r="1" /><circle cx="18" cy="20" r="1" /></svg>
+        @if (cart.totalQuantity() > 0) { <span class="cart-badge">{{ cart.totalQuantity() > 99 ? '99+' : cart.totalQuantity() }}</span> }
+      </a>
+        <button class="login-link" type="button" [disabled]="loggingOut()" (click)="logout()">{{ loggingOut() ? 'Logging out…' : 'Log out' }}</button>
       } @else if (auth.initialized()) {
-      <a
-        class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 no-underline transition hover:border-slate-400 hover:bg-slate-100 sm:px-4"
-        routerLink="/login"
-        routerLinkActive="border-slate-400 bg-slate-100"
-      >
-        Log in
-      </a>
-      <a
-        class="rounded-xl bg-blue-700 px-3 py-2.5 text-sm font-bold text-white no-underline transition hover:bg-blue-800 sm:px-4"
-        routerLink="/register"
-        routerLinkActive="bg-blue-800"
-      >
-        Sign up
-      </a>
+        <a class="login-link" routerLink="/login" routerLinkActive="active">Log in</a>
+        <a class="signup-link" routerLink="/register">Sign up</a>
       }
     </div>
   </nav>
+  <div aria-live="polite" role="status">
+    @if (announcement()) {
+      <div class="announcement"><span>{{ announcement() }}</span><button type="button" aria-label="Dismiss notification" (click)="announcement.set('')">×</button></div>
+    }
+  </div>
 </header>
 
 <router-outlet />

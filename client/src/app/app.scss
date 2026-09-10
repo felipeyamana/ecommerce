@@ -1,0 +1,55 @@
+:host { display: block; }
+.site-header { position: sticky; top: 0; z-index: 20; border-bottom: 1px solid #e2e8f0; background: rgb(255 255 255 / 96%); backdrop-filter: blur(16px); }
+.navigation { display: flex; align-items: center; gap: clamp(24px, 3vw, 56px); width: calc(100% - clamp(32px, 6vw, 96px)); min-height: 84px; margin: auto; }
+a { text-decoration: none; }
+button, input, summary { font: inherit; }
+button, summary { cursor: pointer; }
+.brand { flex-shrink: 0; color: #0f172a; font-size: 22px; font-weight: 800; letter-spacing: -1px; }
+.brand span { color: #1d4ed8; }
+.catalog-links, .account-links { display: flex; align-items: center; gap: 18px; }
+.catalog-links { white-space: nowrap; }
+.nav-link, .login-link { display: inline-flex; align-items: center; gap: 6px; padding: 12px 0; border: 0; background: transparent; color: #475569; font-size: 16px; font-weight: 600; white-space: nowrap; }
+.nav-link:hover, .login-link:hover, .active { color: #1d4ed8; }
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+summary { list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary svg { width: 14px; height: 14px; transition: transform .15s; }
+details[open] summary svg { transform: rotate(180deg); }
+.categories { position: relative; }
+.category-panel { position: absolute; top: calc(100% + 12px); left: 0; width: 260px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 16px; background: white; box-shadow: 0 12px 32px #0f172a14; white-space: normal; }
+.panel-label { color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; }
+.category-panel a { display: flex; justify-content: space-between; margin-top: 12px; padding: 12px; border-radius: 8px; background: #eff6ff; color: #1d4ed8; font-size: 14px; font-weight: 600; }
+.category-panel p { margin: 14px 0 0; font-size: 12px; line-height: 1.6; color: #64748b; }
+.search { display: flex; align-items: center; flex: 1; min-width: 140px; height: 42px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+.search:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px #dbeafe; }
+.search button { display: grid; place-items: center; align-self: stretch; padding: 0 10px; border: 0; background: transparent; color: #64748b; }
+.search svg { width: 18px; height: 18px; }
+.search input { width: 100%; min-width: 0; padding-right: 10px; border: 0; outline: none; background: transparent; color: #0f172a; font-size: 16px; }
+.account-links { gap: 14px; }
+.cart-link { position: relative; display: grid; place-items: center; width: 40px; height: 42px; border-radius: 10px; color: #334155; }
+.cart-link:hover { background: #eff6ff; color: #1d4ed8; }
+.cart-badge { position: absolute; top: 0; right: -3px; min-width: 18px; padding: 1px 4px; border: 2px solid white; border-radius: 20px; background: #1d4ed8; color: white; text-align: center; font-size: 10px; font-weight: 700; }
+.signup-link { padding: 11px 15px; border-radius: 9px; background: #1d4ed8; color: white; font-size: 16px; font-weight: 600; white-space: nowrap; }
+.signup-link:hover { background: #1e40af; }
+button:disabled { opacity: .6; cursor: wait; }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 4px; }
+.announcement { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px clamp(16px, 3vw, 48px); background: #eff6ff; color: #1e40af; font-size: 13px; }
+.announcement button { border: 0; background: transparent; color: inherit; font-size: 24px; padding: 0 8px; }
+@media (max-width: 1200px) {
+  .navigation { flex-wrap: wrap; gap: 12px 24px; padding: 16px 0; }
+  .brand { flex: 1; }
+  .account-links { order: 1; }
+  .catalog-links { order: 2; }
+  .search { order: 3; }
+}
+@media (max-width: 600px) {
+  .navigation { gap: 12px; }
+  .brand { font-size: 20px; }
+  .account-links { gap: 10px; }
+  .signup-link { padding: 10px 12px; }
+  .catalog-links { width: 100%; justify-content: space-between; gap: 8px; }
+  .nav-link { font-size: 14px; padding: 6px 0; }
+  .search { flex-basis: 100%; }
+  .category-panel { left: -70px; }
+}
+

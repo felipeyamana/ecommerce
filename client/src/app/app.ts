@@ -15,6 +15,22 @@ export class App {
   readonly auth = inject(AuthService);
   readonly cart = inject(CartService);
   readonly loggingOut = signal(false);
+  readonly announcement = signal('');
+
+  closeCategories(event: FocusEvent, menu: HTMLDetailsElement): void {
+    if (!(event.relatedTarget instanceof Node) || !menu.contains(event.relatedTarget)) {
+      menu.open = false;
+    }
+  }
+
+  showComingSoon(feature: string): void {
+    this.announcement.set(`${feature} is coming soon. You can browse all products in the meantime.`);
+  }
+
+  search(event: Event, query: string): void {
+    event.preventDefault();
+    if (query.trim()) this.showComingSoon('Product search');
+  }
 
   constructor() {
     this.auth.initialize();
