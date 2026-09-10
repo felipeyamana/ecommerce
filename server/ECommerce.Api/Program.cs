@@ -124,7 +124,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
+app.UseExceptionHandler(); 
 
 if (app.Environment.IsDevelopment())
 {
