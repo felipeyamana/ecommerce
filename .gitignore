@@ -2,5 +2,6 @@ client/node_modules/
 client/dist/
 server/**/bin/
 server/**/obj/
+server/**/appsettings.Development.json
 .vs/
 *.user

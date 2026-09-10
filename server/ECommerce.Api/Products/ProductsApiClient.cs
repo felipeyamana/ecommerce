@@ -19,11 +19,15 @@ internal sealed class ProductsApiClient(
             cancellationToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new ProductsApiException(
+                $"The products API returned status code {(int)response.StatusCode}.");
+        }
 
         return await response.Content.ReadFromJsonAsync<PagedProductsResponse>(
             cancellationToken: cancellationToken)
-            ?? throw new InvalidOperationException("The products API returned an empty products response.");
+            ?? throw new ProductsApiException("The products API returned an empty products response.");
     }
 
     public async Task<ProductResponse?> GetProductAsync(
@@ -41,11 +45,15 @@ internal sealed class ProductsApiClient(
             return null;
         }
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new ProductsApiException(
+                $"The products API returned status code {(int)response.StatusCode}.");
+        }
 
         return await response.Content.ReadFromJsonAsync<ProductResponse>(
             cancellationToken: cancellationToken)
-            ?? throw new InvalidOperationException("The products API returned an empty product response.");
+            ?? throw new ProductsApiException("The products API returned an empty product response.");
     }
 
     private async Task<HttpRequestMessage> CreateRequestAsync(

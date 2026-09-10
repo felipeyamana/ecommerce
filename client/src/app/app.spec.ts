@@ -1,12 +1,38 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 import { App } from './app';
+import { AuthService } from './core/auth/auth.service';
+import { CartService } from './core/cart/cart.service';
 
 describe('App', () => {
+  const currentUser = signal(null);
+  const initialized = signal(true);
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthService,
+          useValue: {
+            currentUser: currentUser.asReadonly(),
+            initialized: initialized.asReadonly(),
+            isAuthenticated: () => currentUser() !== null,
+            initialize: () => undefined,
+            logout: () => of(undefined),
+          },
+        },
+        {
+          provide: CartService,
+          useValue: {
+            totalQuantity: () => 0,
+            reset: () => undefined,
+          },
+        },
+      ],
     }).compileComponents();
   });
 

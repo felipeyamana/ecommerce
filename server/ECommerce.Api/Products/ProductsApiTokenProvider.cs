@@ -38,11 +38,15 @@ internal sealed class ProductsApiTokenProvider(
             request.Headers.Add("X-API-Key", _options.ApiKey);
 
             using var response = await client.SendAsync(request, cancellationToken);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ProductsApiException(
+                    $"The products API token endpoint returned status code {(int)response.StatusCode}.");
+            }
 
             var token = await response.Content.ReadFromJsonAsync<ProductsApiTokenResponse>(
                 cancellationToken: cancellationToken)
-                ?? throw new InvalidOperationException("The products API returned an empty token response.");
+                ?? throw new ProductsApiException("The products API returned an empty token response.");
 
             _accessToken = token.AccessToken;
             _expiresAtUtc = token.ExpiresAtUtc;

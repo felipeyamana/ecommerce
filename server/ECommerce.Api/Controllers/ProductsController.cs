@@ -25,15 +25,8 @@ public sealed class ProductsController(IProductsApiClient productsApiClient) : C
             return BadRequest(new { message = "Page size must be between 1 and 30." });
         }
 
-        try
-        {
-            var products = await productsApiClient.GetProductsAsync(page, pageSize, cancellationToken);
-            return Ok(products);
-        }
-        catch (Exception exception) when (IsUpstreamFailure(exception))
-        {
-            return ProductsApiUnavailable();
-        }
+        var products = await productsApiClient.GetProductsAsync(page, pageSize, cancellationToken);
+        return Ok(products);
     }
 
     [HttpGet("{id:long}")]
@@ -44,26 +37,10 @@ public sealed class ProductsController(IProductsApiClient productsApiClient) : C
         long id,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var product = await productsApiClient.GetProductAsync(id, cancellationToken);
+        var product = await productsApiClient.GetProductAsync(id, cancellationToken);
 
-            return product is null
-                ? NotFound(new { message = $"Product {id} was not found." })
-                : Ok(product);
-        }
-        catch (Exception exception) when (IsUpstreamFailure(exception))
-        {
-            return ProductsApiUnavailable();
-        }
+        return product is null
+            ? NotFound(new { message = $"Product {id} was not found." })
+            : Ok(product);
     }
-
-    private ObjectResult ProductsApiUnavailable() =>
-        Problem(
-            statusCode: StatusCodes.Status502BadGateway,
-            title: "Products service unavailable",
-            detail: "The products service could not complete the request.");
-
-    private static bool IsUpstreamFailure(Exception exception) =>
-        exception is HttpRequestException or InvalidOperationException;
 }
