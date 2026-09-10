@@ -135,7 +135,10 @@ app.UseHttpsRedirection();
 app.UseCors("AngularDev");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapControllers();
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
