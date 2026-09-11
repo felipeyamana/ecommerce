@@ -26,6 +26,11 @@ public sealed record PagedProductsResponse(
     int TotalCount,
     int TotalPages);
 
+public sealed record CategoryResponse(
+    int Id,
+    string Name,
+    int? ParentCategoryId);
+
 internal sealed record ProductsApiTokenRequest(
     string Subject,
     IReadOnlyCollection<string> Roles);

@@ -10,17 +10,17 @@ internal sealed class CartApiClient(
 {
     private static readonly string[] CartRole = ["CartUser"];
 
-    public Task<CartApiResult> GetAsync(ClaimsPrincipal user, CancellationToken cancellationToken) =>
+    public Task<DownstreamApiResult<CartResponse>> GetAsync(ClaimsPrincipal user, CancellationToken cancellationToken) =>
         SendAsync(user, HttpMethod.Get, "api/cart", null, ["cart:read"], cancellationToken);
 
-    public Task<CartApiResult> SetItemAsync(
+    public Task<DownstreamApiResult<CartResponse>> SetItemAsync(
         ClaimsPrincipal user,
         long productId,
         SetCartItemRequest request,
         CancellationToken cancellationToken) =>
         SendAsync(user, HttpMethod.Put, $"api/cart/items/{productId}", request, ["cart:write"], cancellationToken);
 
-    public Task<CartApiResult> RemoveItemAsync(
+    public Task<DownstreamApiResult<CartResponse>> RemoveItemAsync(
         ClaimsPrincipal user,
         long productId,
         Guid? version,
@@ -33,13 +33,13 @@ internal sealed class CartApiClient(
             ["cart:write"],
             cancellationToken);
 
-    public Task<CartApiResult> ClearAsync(
+    public Task<DownstreamApiResult<CartResponse>> ClearAsync(
         ClaimsPrincipal user,
         Guid? version,
         CancellationToken cancellationToken) =>
         SendAsync(user, HttpMethod.Delete, $"api/cart{VersionQuery(version)}", null, ["cart:write"], cancellationToken);
 
-    private async Task<CartApiResult> SendAsync(
+    private async Task<DownstreamApiResult<CartResponse>> SendAsync(
         ClaimsPrincipal user,
         HttpMethod method,
         string requestUri,
@@ -62,20 +62,18 @@ internal sealed class CartApiClient(
         {
             var cart = await response.Content.ReadFromJsonAsync<CartResponse>(cancellationToken: cancellationToken)
                 ?? throw new ProductsApiException("The products API returned an empty cart response.");
-            return new CartApiResult(cart, (int)response.StatusCode, null);
+            return DownstreamApiResult<CartResponse>.Success(cart, (int)response.StatusCode);
         }
 
-        if ((int)response.StatusCode is 400 or 403 or 409)
-        {
-            var error = await response.Content.ReadFromJsonAsync<CartErrorResponse>(cancellationToken: cancellationToken);
-            return new CartApiResult(null, (int)response.StatusCode, error?.Message ?? "The cart could not be updated.");
-        }
-
-        throw new ProductsApiException($"The products API returned status code {(int)response.StatusCode} for a cart request.");
+        var error = await DownstreamErrorReader.ReadAsync(
+            response,
+            "The cart request could not be completed.",
+            cancellationToken);
+        return DownstreamApiResult<CartResponse>.Failure(
+            (int)response.StatusCode,
+            error);
     }
 
     private static string VersionQuery(Guid? version) =>
         version.HasValue ? $"?version={Uri.EscapeDataString(version.Value.ToString())}" : string.Empty;
-
-    private sealed record CartErrorResponse(string Message);
 }

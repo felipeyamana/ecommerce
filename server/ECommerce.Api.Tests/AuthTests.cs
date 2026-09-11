@@ -173,31 +173,33 @@ public sealed class AuthTests : IAsyncLifetime
     {
         public string? UserId { get; private set; }
 
-        public Task<CartApiResult> GetAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+        public Task<DownstreamApiResult<CartResponse>> GetAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
         {
             UserId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             return Task.FromResult(EmptyCart());
         }
 
-        public Task<CartApiResult> SetItemAsync(
+        public Task<DownstreamApiResult<CartResponse>> SetItemAsync(
             ClaimsPrincipal user,
             long productId,
             SetCartItemRequest request,
             CancellationToken cancellationToken) => Task.FromResult(EmptyCart());
 
-        public Task<CartApiResult> RemoveItemAsync(
+        public Task<DownstreamApiResult<CartResponse>> RemoveItemAsync(
             ClaimsPrincipal user,
             long productId,
             Guid? version,
             CancellationToken cancellationToken) => Task.FromResult(EmptyCart());
 
-        public Task<CartApiResult> ClearAsync(
+        public Task<DownstreamApiResult<CartResponse>> ClearAsync(
             ClaimsPrincipal user,
             Guid? version,
             CancellationToken cancellationToken) => Task.FromResult(EmptyCart());
 
-        private static CartApiResult EmptyCart() =>
-            new(new CartResponse(Guid.Empty, [], 0, null, null), StatusCodes.Status200OK, null);
+        private static DownstreamApiResult<CartResponse> EmptyCart() =>
+            DownstreamApiResult<CartResponse>.Success(
+                new CartResponse(Guid.Empty, [], 0, null, null),
+                StatusCodes.Status200OK);
     }
 
     private sealed record TestSigningKey(string PrivateKey, string PublicKey)

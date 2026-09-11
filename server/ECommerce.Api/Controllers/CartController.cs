@@ -50,7 +50,7 @@ public sealed class CartController(ICartApiClient cartApiClient) : ControllerBas
         CancellationToken cancellationToken) =>
         Respond(await cartApiClient.ClearAsync(User, version, cancellationToken));
 
-    private IActionResult Respond(CartApiResult result) => result.IsSuccess
+    private IActionResult Respond(DownstreamApiResult<CartResponse> result) => result.IsSuccess
         ? Ok(result.Value)
         : StatusCode(result.StatusCode, new { message = result.Error });
 }

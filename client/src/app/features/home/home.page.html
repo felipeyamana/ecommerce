@@ -2,8 +2,12 @@
   <header class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
     <div>
       <p class="mb-2 text-xs font-extrabold tracking-widest text-blue-700 uppercase">Our catalog</p>
-      <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Products</h1>
-      <p class="mt-2 mb-0 text-slate-500">Browse the latest products available in our catalog.</p>
+      <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+        {{ searchTerm() ? 'Search results' : 'Products' }}
+      </h1>
+      <p class="mt-2 mb-0 text-slate-500">
+        {{ searchTerm() ? 'Products matching “' + searchTerm() + '”' : 'Browse the latest products available in our catalog.' }}
+      </p>
     </div>
 
     @if (products()) {
@@ -113,8 +117,13 @@
     }
   } @else {
     <section class="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-      <h2 class="mt-0 text-xl font-bold text-slate-900">No products yet</h2>
-      <p class="mb-0 text-slate-500">Products will appear here when they are added to the catalog.</p>
+      <h2 class="mt-0 text-xl font-bold text-slate-900">{{ searchTerm() ? 'No matching products' : 'No products yet' }}</h2>
+      @if (searchTerm()) {
+        <p class="text-slate-500">Try a different product name, brand, or description.</p>
+        <a class="font-bold text-blue-700 no-underline hover:underline" routerLink="/">Clear search</a>
+      } @else {
+        <p class="mb-0 text-slate-500">Products will appear here when they are added to the catalog.</p>
+      }
     </section>
   }
 </main>

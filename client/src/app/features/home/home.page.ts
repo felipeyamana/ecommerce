@@ -1,7 +1,8 @@
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { distinctUntilChanged, finalize, map } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PagedProducts, ProductsService } from '../../core/products/products.service';
 
 @Component({
@@ -26,13 +27,25 @@ export class HomePage {
   };
 
   private readonly productsService = inject(ProductsService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly products = signal<PagedProducts | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
+  readonly searchTerm = signal('');
 
   constructor() {
-    this.loadPage(1);
+    this.route.queryParamMap
+      .pipe(
+        map((params) => (params.get('search') ?? '').trim()),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((search) => {
+        this.searchTerm.set(search);
+        this.loadPage(1);
+      });
   }
 
   categoryImage(subCategoryId: number | null): string {
@@ -49,7 +62,7 @@ export class HomePage {
     this.error.set('');
 
     this.productsService
-      .getProducts(page)
+      .getProducts(page, 30, this.searchTerm() || undefined)
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (products) => this.products.set(products),

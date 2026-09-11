@@ -9,7 +9,33 @@
         <div class="category-panel">
           <span class="panel-label">Explore the catalog</span>
           <a routerLink="/" (click)="categories.open = false">All products <span aria-hidden="true">→</span></a>
-          <p>Shopping by category is coming soon.</p>
+          @if (categoriesLoading()) {
+            <div class="mt-4 text-sm text-slate-500" aria-live="polite">Loading categories…</div>
+          } @else if (categoriesError()) {
+            <div class="mt-4 flex items-center justify-between gap-3 text-sm text-slate-500" role="alert">
+              <span>Categories could not be loaded.</span>
+              <button class="border-0 bg-transparent font-bold text-blue-700" type="button" (click)="loadCategories(true)">Try again</button>
+            </div>
+          } @else {
+            @if (categoryGroups().length) {
+              <div class="mt-4 grid gap-4">
+                @for (category of categoryGroups(); track category.id) {
+                  <section class="border-t border-slate-200 pt-3.5">
+                    <h2 class="m-0 text-[15px] font-bold text-slate-900">{{ category.name }}</h2>
+                    @if (category.children.length) {
+                      <ul class="mt-2 flex list-none flex-wrap gap-x-3.5 gap-y-2 p-0">
+                        @for (child of category.children; track child.id) {
+                          <li class="text-sm leading-5 text-slate-500">{{ child.name }}</li>
+                        }
+                      </ul>
+                    }
+                  </section>
+                }
+              </div>
+            } @else {
+              <div class="mt-4 text-sm text-slate-500">No categories available.</div>
+            }
+          }
         </div>
       </details>
       <button class="nav-link" type="button" (click)="showComingSoon('Deals')">Deals</button>
@@ -18,7 +44,7 @@
 
     <form class="search" role="search" (submit)="search($event, searchInput.value)">
       <button type="submit" aria-label="Search products"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg></button>
-      <input #searchInput type="search" name="q" placeholder="Search products..." aria-label="Search products" maxlength="200" />
+      <input #searchInput type="search" name="q" placeholder="Search products..." aria-label="Search products" maxlength="200" [value]="searchQuery()" />
     </form>
 
     <div class="account-links">
