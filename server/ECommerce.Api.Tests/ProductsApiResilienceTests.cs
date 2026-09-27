@@ -57,13 +57,15 @@ public sealed class ProductsApiResilienceTests
         using var provider = CreateProvider(handler);
         var client = provider.GetRequiredService<IHttpClientFactory>().CreateClient("resilience-test");
 
-        using var response = await client.GetAsync("api/products");
-        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
-        Assert.Equal(4, handler.Attempts);
+        for (var request = 0; request < 3; request++)
+        {
+            using var response = await client.GetAsync("api/products");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        }
 
         await Assert.ThrowsAsync<BrokenCircuitException>(
             () => client.GetAsync("api/products"));
-        Assert.Equal(4, handler.Attempts);
+        Assert.Equal(10, handler.Attempts);
     }
 
     private static ServiceProvider CreateProvider(HttpMessageHandler handler)
