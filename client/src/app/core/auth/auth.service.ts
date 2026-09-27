@@ -5,7 +5,7 @@ import { catchError, finalize, map, Observable, of, switchMap, tap, throwError }
 
 export interface LoginRequest { email: string; password: string; rememberMe: boolean; }
 export interface RegisterRequest { email: string; password: string; confirmPassword: string; }
-export interface CurrentUser { id: string; email: string; roles: string[]; }
+export interface CurrentUser { id: string; email: string; name?: string | null; roles: string[]; }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -19,6 +19,18 @@ export class AuthService {
   readonly initialized = this.initializedState.asReadonly();
   readonly initializedChanges = toObservable(this.initializedState);
   readonly isAuthenticated = computed(() => this.currentUserState() !== null);
+  readonly displayName = computed(() => {
+    const user = this.currentUserState();
+    if (!user) return '';
+    if (user.name?.trim()) return user.name.trim();
+
+    return user.email
+      .split('@')[0]
+      .split(/[._-]+/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  });
 
   initialize(): void {
     this.initializeCsrf()

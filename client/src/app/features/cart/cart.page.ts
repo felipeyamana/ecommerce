@@ -69,7 +69,7 @@ export class CartPage {
   private handleError(error: HttpErrorResponse): void {
     if (error.status === 409) {
       this.error.set('Your cart changed in another request. We refreshed it for you.');
-      this.cartService.load().subscribe({ error: () => undefined });
+      this.cartService.load(true).subscribe({ error: () => undefined });
       return;
     }
 

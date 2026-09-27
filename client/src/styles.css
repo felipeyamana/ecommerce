@@ -9,6 +9,132 @@ body {
   min-height: 100%;
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px;
+  color: #334155;
+}
+
+.account-trigger > img {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border: 2px solid #dbeafe;
+  border-radius: 999px;
+}
+
+.account-copy {
+  display: grid;
+  max-width: 150px;
+  line-height: 1.2;
+}
+
+.account-copy small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.account-copy strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 150ms ease;
+}
+
+.account-menu[open] .account-chevron {
+  transform: rotate(180deg);
+}
+
+.account-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  display: none;
+  width: 250px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 16px 36px rgb(15 23 42 / 16%);
+}
+
+.account-menu[open] .account-panel,
+.account-menu:hover .account-panel,
+.account-menu:focus-within .account-panel {
+  display: grid;
+}
+
+.account-panel-header {
+  display: grid;
+  gap: 3px;
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.account-panel-header strong,
+.account-panel-header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-panel-header strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.account-panel-header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.account-panel > a,
+.account-panel > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 0;
+  background: white;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.account-panel > a:hover,
+.account-panel > button:hover,
+.account-panel > .account-item-active {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.account-panel > button {
+  border-top: 1px solid #e2e8f0;
+  color: #be123c;
+}
+
+.account-panel svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+}
+
 body {
   margin: 0;
   color: #172033;

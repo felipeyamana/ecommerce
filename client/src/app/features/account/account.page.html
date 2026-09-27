@@ -1,0 +1,17 @@
+<main class="mx-auto w-[min(calc(100%-2rem),60rem)] py-10 sm:py-14">
+  <p class="mb-2 text-sm font-bold text-blue-700">Your account</p>
+  <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">My account</h1>
+
+  <section class="mt-8 flex flex-col items-start gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
+    <img class="size-20 rounded-full" src="/avatar-placeholder.svg" alt="Profile placeholder" width="80" height="80" />
+    <div>
+      <h2 class="m-0 text-xl font-bold text-slate-900">{{ auth.displayName() }}</h2>
+      <p class="mt-1 mb-0 text-slate-500">{{ auth.currentUser()?.email }}</p>
+    </div>
+  </section>
+
+  <section class="mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h2 class="mt-0 text-xl font-bold text-slate-900">Profile details</h2>
+    <p class="mb-0 leading-7 text-slate-600">Your personal details and account preferences will appear here.</p>
+  </section>
+</main>

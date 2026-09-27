@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Observable, switchMap, tap } from 'rxjs';
+import { finalize, Observable, of, shareReplay, switchMap, tap } from 'rxjs';
 
 export interface CartItem {
   productId: number;
@@ -31,12 +31,26 @@ export class CartService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = '/api/cart';
   private readonly cartState = signal<Cart | null>(null);
+  private loadRequest: Observable<Cart> | null = null;
 
   readonly cart = this.cartState.asReadonly();
   readonly totalQuantity = computed(() => this.cartState()?.totalQuantity ?? 0);
 
-  load(): Observable<Cart> {
-    return this.http.get<Cart>(this.apiUrl).pipe(tap((cart) => this.cartState.set(cart)));
+  load(refresh = false): Observable<Cart> {
+    const cart = this.cartState();
+    if (!refresh && cart) return of(cart);
+    if (this.loadRequest) return this.loadRequest;
+
+    const request = this.http.get<Cart>(this.apiUrl).pipe(
+      tap((loadedCart) => this.cartState.set(loadedCart)),
+      finalize(() => {
+        if (this.loadRequest === request) this.loadRequest = null;
+      }),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    );
+
+    this.loadRequest = request;
+    return request;
   }
 
   add(productId: number, quantity = 1): Observable<Cart> {

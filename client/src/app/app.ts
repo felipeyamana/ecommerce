@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -34,7 +34,7 @@ export class App {
       })),
   );
 
-  closeCategories(event: FocusEvent, menu: HTMLDetailsElement): void {
+  closeMenu(event: FocusEvent, menu: HTMLDetailsElement): void {
     if (!(event.relatedTarget instanceof Node) || !menu.contains(event.relatedTarget)) {
       menu.open = false;
     }
@@ -52,6 +52,15 @@ export class App {
 
   constructor() {
     this.auth.initialize();
+    effect((onCleanup) => {
+      if (!this.auth.currentUser()) {
+        this.cart.reset();
+        return;
+      }
+
+      const subscription = this.cart.load().subscribe({ error: () => undefined });
+      onCleanup(() => subscription.unsubscribe());
+    });
     this.syncSearchQuery();
     this.router.events
       .pipe(
