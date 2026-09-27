@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { App } from './app';
 import { AuthService, CurrentUser } from './core/auth/auth.service';
@@ -84,5 +84,16 @@ describe('App', () => {
     await fixture.whenStable();
 
     expect(resetCart).toHaveBeenCalled();
+  });
+
+  it('should navigate home after logout', async () => {
+    const fixture = TestBed.createComponent(App);
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigateByUrl');
+
+    fixture.componentInstance.logout();
+    await fixture.whenStable();
+
+    expect(navigate).toHaveBeenCalledWith('/');
   });
 });

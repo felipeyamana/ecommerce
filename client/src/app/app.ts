@@ -86,7 +86,7 @@ export class App {
   logout(): void {
     this.loggingOut.set(true);
     this.auth.logout().pipe(finalize(() => this.loggingOut.set(false))).subscribe({
-      next: () => this.cart.reset(),
+      next: () => void this.router.navigateByUrl('/'),
     });
   }
 
