@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace ECommerce.Api.Tests;
@@ -48,6 +49,29 @@ public sealed class AuthTests
         var logout = await client.PostAsJsonAsync("/api/auth/logout", new { });
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("ecommerceuser")]
+    [InlineData("ECOMMERCEUSER1")]
+    [InlineData("EcommerceUser")]
+    [InlineData("Shop1")]
+    public async Task RegisterRejectsPasswordsThatDoNotMeetProductsApiRequirements(string password)
+    {
+        var authClient = new RecordingProductsAuthApiClient();
+        using var factory = CreateFactory(authClient);
+        using var client = CreateClient(factory);
+
+        await SetAntiforgeryHeaderAsync(client);
+        var response = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = "shopper@example.com",
+            password,
+            confirmPassword = password
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(authClient.RegisterRequest);
     }
 
     [Fact]
@@ -123,6 +147,7 @@ public sealed class AuthTests
             .WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
+                builder.ConfigureLogging(logging => logging.ClearProviders());
                 builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
                     new Dictionary<string, string?>
                     {

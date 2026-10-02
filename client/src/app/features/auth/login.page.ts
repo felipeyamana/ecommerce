@@ -4,6 +4,11 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize, Observable } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 
+interface PasswordRequirement {
+  label: string;
+  pattern: RegExp;
+}
+
 @Component({
   selector: 'app-login-page',
   imports: [ReactiveFormsModule, RouterLink],
@@ -21,6 +26,12 @@ export class LoginPage {
   private readonly returnUrl = this.safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl'));
   readonly busy = signal(false);
   readonly error = signal('');
+  readonly passwordRequirements: readonly PasswordRequirement[] = [
+    { label: 'At least 8 characters', pattern: /.{8,}/u },
+    { label: 'One lowercase letter', pattern: /\p{Ll}/u },
+    { label: 'One uppercase letter', pattern: /\p{Lu}/u },
+    { label: 'One number', pattern: /\p{Nd}/u },
+  ];
 
   readonly loginForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -30,9 +41,19 @@ export class LoginPage {
 
   readonly registerForm = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: [
+      '',
+      [
+        Validators.required,
+        ...this.passwordRequirements.map((requirement) => Validators.pattern(requirement.pattern)),
+      ],
+    ],
     confirmPassword: ['', Validators.required],
   });
+
+  passwordMeetsRequirement(requirement: PasswordRequirement): boolean {
+    return requirement.pattern.test(this.registerForm.controls.password.value);
+  }
 
   submitLogin(): void {
     if (this.loginForm.invalid) {
