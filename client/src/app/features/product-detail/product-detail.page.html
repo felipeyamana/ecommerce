@@ -27,13 +27,17 @@
     </section>
   } @else if (product(); as item) {
     <nav class="mb-6 flex items-center gap-2 text-sm text-slate-500" aria-label="Breadcrumb">
+      <a class="font-semibold text-blue-700 no-underline hover:underline" routerLink="/">Home</a>
+      <span aria-hidden="true">/</span>
       <a class="font-semibold text-blue-700 no-underline hover:underline" routerLink="/">Products</a>
       <span aria-hidden="true">/</span>
-      <span>{{ item.categoryName }}</span>
+      <a class="text-inherit no-underline hover:text-blue-700" routerLink="/" [queryParams]="{ categoryId: item.categoryId }">{{ item.categoryName }}</a>
       @if (item.subCategoryName) {
         <span aria-hidden="true">/</span>
-        <span class="truncate">{{ item.subCategoryName }}</span>
+        <a class="text-inherit no-underline hover:text-blue-700" routerLink="/" [queryParams]="{ categoryId: item.categoryId, subCategoryId: item.subCategoryId }">{{ item.subCategoryName }}</a>
       }
+      <span aria-hidden="true">/</span>
+      <span class="truncate" aria-current="page">{{ item.name }}</span>
     </nav>
 
     <section class="grid items-start gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)_18rem] lg:gap-10">

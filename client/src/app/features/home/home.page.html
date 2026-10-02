@@ -1,5 +1,9 @@
 <main class="mx-auto w-[min(calc(100%-2rem),100rem)] py-8 sm:py-12">
-  <div class="grid items-start gap-6 xl:grid-cols-[14rem_minmax(0,1fr)_18rem]">
+  <div class="grid items-start gap-6 xl:grid-cols-[18rem_minmax(0,1fr)_18rem] 2xl:grid-cols-[20rem_minmax(0,1fr)_18rem]">
+    <div class="hidden xl:block xl:sticky xl:top-24">
+      @if (!filterDrawerOpen()) { <ng-container *ngTemplateOutlet="categoryFilters" /> }
+    </div>
+    <ng-template #categoryFilters>
     <aside
       class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-24"
       aria-label="Product categories"
@@ -46,11 +50,7 @@
               type="button"
               (click)="selectCategory(category)"
             >
-              <span
-                class="grid size-7 place-items-center rounded-lg bg-slate-100 text-base"
-                aria-hidden="true"
-                >▣</span
-              >
+              <svg class="size-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path [attr.d]="categoryIcon(category)" /></svg>
               <span class="min-w-0 truncate">{{ category.name }}</span>
             </button>
 
@@ -64,7 +64,7 @@
                 type="button"
                 (click)="selectCategory(child)"
               >
-                <span class="text-slate-300" aria-hidden="true">—</span>
+                <svg class="size-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path [attr.d]="categoryIcon(child)" /></svg>
                 <span class="min-w-0 truncate">{{ child.name }}</span>
               </button>
             }
@@ -72,9 +72,24 @@
         </div>
       }
     </aside>
+    </ng-template>
 
     <section class="min-w-0" aria-labelledby="products-heading">
-      <header class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <nav class="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-500" aria-label="Breadcrumb">
+        <a routerLink="/" class="no-underline hover:text-blue-700">Home</a>
+        <span aria-hidden="true">›</span>
+        <a routerLink="/" class="no-underline hover:text-blue-700" [attr.aria-current]="!selectedCategory() && !searchTerm() ? 'page' : null">Products</a>
+        @if (selectedParent(); as parent) {
+          <span aria-hidden="true">›</span>
+          <a routerLink="/" [queryParams]="{ categoryId: parent.id }" class="no-underline hover:text-blue-700">{{ parent.name }}</a>
+        }
+        @if (selectedCategory(); as category) {
+          <span aria-hidden="true">›</span><span aria-current="page">{{ category.name }}</span>
+        } @else if (searchTerm()) {
+          <span aria-hidden="true">›</span><span aria-current="page">Search results</span>
+        }
+      </nav>
+      <header class="mb-8 flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
         <div>
           <p class="mb-2 text-xs font-extrabold tracking-widest text-blue-700 uppercase">
             Our catalog
@@ -94,12 +109,28 @@
           </p>
         </div>
 
+        <div class="flex shrink-0 flex-col gap-3 sm:items-end">
+          <div class="flex flex-wrap items-center gap-2">
+            <button class="flex min-h-11 items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 text-sm font-bold text-blue-700 xl:hidden" type="button" aria-haspopup="dialog" aria-controls="catalog-filter-drawer" (click)="openFilterDrawer()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 6h18 M3 12h18 M3 18h18 M7 3v6 M16 9v6 M9 15v6" /></svg>
+              Filters @if (activeFilterCount()) { <span class="rounded-full bg-blue-700 px-1.5 text-xs text-white">{{ activeFilterCount() }}</span> }
+            </button>
+            <label for="catalog-sort" class="text-sm text-slate-600">Sort by</label>
+            <select id="catalog-sort" class="max-w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-blue-700" [value]="catalogQuery().sort || 'name-asc'" (change)="selectSort($event)">
+              @for (option of sortOptions; track option.value) { <option [value]="option.value">{{ option.label }}</option> }
+            </select>
+            <div class="flex overflow-hidden rounded-lg border border-slate-300 bg-white" role="group" aria-label="Product view">
+              <button class="grid size-9 place-items-center text-slate-500 hover:bg-blue-50" [class.bg-blue-50]="viewStyle() === 'grid'" [class.text-blue-700]="viewStyle() === 'grid'" type="button" aria-label="Grid view" [attr.aria-pressed]="viewStyle() === 'grid'" (click)="viewStyle.set('grid')"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z" /></svg></button>
+              <button class="grid size-9 place-items-center border-l border-slate-300 text-slate-500 hover:bg-blue-50" [class.bg-blue-50]="viewStyle() === 'list'" [class.text-blue-700]="viewStyle() === 'list'" type="button" aria-label="List view" [attr.aria-pressed]="viewStyle() === 'list'" (click)="viewStyle.set('list')"><svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 5h2 M3 12h2 M3 19h2 M9 5h12 M9 12h12 M9 19h12" /></svg></button>
+            </div>
+          </div>
         @if (products()) {
           <p class="m-0 text-sm whitespace-nowrap text-slate-500">
             {{ products()!.totalCount | number }}
             {{ products()!.totalCount === 1 ? 'product' : 'products' }}
           </p>
         }
+        </div>
       </header>
 
       @if (loading()) {
@@ -137,7 +168,7 @@
           </p>
         }
 
-        <div class="grid gap-5 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Product listing">
+        <div class="product-listing grid gap-5" [class.sm:grid-cols-2]="viewStyle() === 'grid'" [class.2xl:grid-cols-3]="viewStyle() === 'grid'" [class.list-view]="viewStyle() === 'list'" aria-label="Product listing">
           @for (product of products()!.items; track product.id) {
             <article
               class="flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
@@ -273,6 +304,10 @@
       }
     </section>
 
+    <div class="hidden xl:block xl:sticky xl:top-24">
+      @if (!filterDrawerOpen()) { <ng-container *ngTemplateOutlet="productFilters" /> }
+    </div>
+    <ng-template #productFilters>
     <aside
       class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-24"
       aria-label="Product filters"
@@ -301,6 +336,12 @@
         <h3 class="m-0 text-sm font-extrabold text-slate-900" id="price-filter-heading">
           Price range
         </h3>
+        <div class="price-slider mt-5" [style.--range-start]="(sliderMin() / sliderMaximum() * 100) + '%'" [style.--range-end]="(sliderMax() / sliderMaximum() * 100) + '%'">
+          <div class="price-track" aria-hidden="true"></div>
+          <input type="range" min="0" [max]="sliderMaximum()" step="0.01" [value]="sliderMin()" aria-label="Minimum price slider" (pointerdown)="beginPriceSliderInteraction()" (pointerup)="finishPriceSliderInteraction()" (input)="updatePriceSlider('min', $event)" (change)="finishPriceSliderInteraction()" />
+          <input type="range" min="0" [max]="sliderMaximum()" step="0.01" [value]="sliderMax()" aria-label="Maximum price slider" (pointerdown)="beginPriceSliderInteraction()" (pointerup)="finishPriceSliderInteraction()" (input)="updatePriceSlider('max', $event)" (change)="finishPriceSliderInteraction()" />
+        </div>
+        <div class="mt-2 flex justify-between text-xs font-semibold text-blue-700"><span>{{ sliderMin() | number: '1.0-2' }}</span><span>{{ sliderMax() | number: '1.0-2' }}</span></div>
         @if (products()?.facets; as facets) {
           @if (facets.minPrice !== null && facets.maxPrice !== null) {
             <p class="mt-2 mb-0 text-xs text-slate-500">
@@ -322,6 +363,7 @@
               placeholder="Min"
               [value]="minPriceDraft()"
               (input)="updatePriceDraft('min', $event)"
+              (blur)="applyPriceFilters()"
             />
             <span class="text-slate-400" aria-hidden="true">–</span>
             <label class="sr-only" for="filter-max-price">Maximum price</label>
@@ -334,6 +376,7 @@
               placeholder="Max"
               [value]="maxPriceDraft()"
               (input)="updatePriceDraft('max', $event)"
+              (blur)="applyPriceFilters()"
             />
           </div>
           @if (filterError()) {
@@ -442,5 +485,23 @@
         </div>
       </section>
     </aside>
+    </ng-template>
   </div>
+  <dialog #filterDialog id="catalog-filter-drawer" class="filter-drawer" aria-labelledby="filter-drawer-title" (close)="onFilterDrawerClosed()" (click)="$event.target === filterDialog && closeFilterDrawer()">
+    <div class="drawer-shell">
+      <header class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
+        <h2 id="filter-drawer-title" class="m-0 text-xl font-extrabold text-slate-900">Filter products</h2>
+        <button type="button" class="grid size-11 place-items-center rounded-lg text-2xl text-slate-600 hover:bg-slate-100" aria-label="Close filters" (click)="closeFilterDrawer()" autofocus>×</button>
+      </header>
+      <div class="drawer-content">
+        @if (filterDrawerOpen()) {
+          <ng-container *ngTemplateOutlet="categoryFilters" />
+          <ng-container *ngTemplateOutlet="productFilters" />
+        }
+      </div>
+      <footer class="border-t border-slate-200 bg-white p-4">
+        <button type="button" class="min-h-12 w-full rounded-xl bg-blue-700 px-4 py-3 font-bold text-white hover:bg-blue-800" (click)="showFilteredResults()">Show results</button>
+      </footer>
+    </div>
+  </dialog>
 </main>

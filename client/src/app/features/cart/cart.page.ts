@@ -1,9 +1,12 @@
 import { CurrencyPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { finalize, Observable } from 'rxjs';
 import { Cart, CartService } from '../../core/cart/cart.service';
+import { Product, ProductsService } from '../../core/products/products.service';
+import { productImage } from '../../core/products/product-image';
 
 @Component({
   selector: 'app-cart-page',
@@ -13,6 +16,11 @@ import { Cart, CartService } from '../../core/cart/cart.service';
 })
 export class CartPage {
   readonly cartService = inject(CartService);
+  private readonly productsService = inject(ProductsService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly requestedProducts = new Set<number>();
+  readonly productDetails = signal<ReadonlyMap<number, Product>>(new Map());
+  readonly productImage = productImage;
   readonly loading = signal(true);
   readonly changingProductId = signal<number | null>(null);
   readonly clearing = signal(false);
@@ -22,6 +30,21 @@ export class CartPage {
   );
 
   constructor() {
+    effect(() => {
+      const items = this.cartService.cart()?.items ?? [];
+      untracked(() => {
+        for (const item of items) {
+          if (this.requestedProducts.has(item.productId)) continue;
+          this.requestedProducts.add(item.productId);
+          this.productsService.getProduct(item.productId)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              next: (product) => this.productDetails.update((details) => new Map(details).set(item.productId, product)),
+              error: () => undefined,
+            });
+        }
+      });
+    });
     this.load();
   }
 
