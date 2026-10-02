@@ -2,15 +2,14 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
 using ECommerce.Api.Contracts;
-using ECommerce.Api.Data;
 using ECommerce.Api.Identity;
 using ECommerce.Api.Products;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -18,48 +17,16 @@ using Xunit;
 
 namespace ECommerce.Api.Tests;
 
-public sealed class AuthTests : IAsyncLifetime
+public sealed class AuthTests
 {
-    private readonly string _databaseName = "ECommerceAuthTests_" + Guid.NewGuid().ToString("N");
     private readonly TestSigningKey _signingKey = TestSigningKey.Create();
-
-    private string ConnectionString
-    {
-        get
-        {
-            var template = Environment.GetEnvironmentVariable("ECOMMERCE_TEST_CONNECTION_STRING");
-            return string.IsNullOrWhiteSpace(template)
-                ? $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;Pooling=False"
-                : template.Replace("{database}", _databaseName, StringComparison.Ordinal);
-        }
-    }
-
-    public async Task InitializeAsync()
-    {
-        await using var db = CreateDbContext();
-        await db.Database.MigrateAsync();
-    }
-
-    public async Task DisposeAsync()
-    {
-        if (!_databaseName.StartsWith("ECommerceAuthTests_", StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("Refusing to delete a non-test database.");
-        }
-
-        await using var db = CreateDbContext();
-        await db.Database.EnsureDeletedAsync();
-    }
 
     [Fact]
     public async Task RegisterCreatesSessionAndLogoutClearsIt()
     {
-        using var factory = CreateFactory();
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = true
-        });
+        var authClient = new RecordingProductsAuthApiClient();
+        using var factory = CreateFactory(authClient);
+        using var client = CreateClient(factory);
 
         await SetAntiforgeryHeaderAsync(client);
         var register = await client.PostAsJsonAsync("/api/auth/register", new
@@ -68,11 +35,14 @@ public sealed class AuthTests : IAsyncLifetime
             password = "Password1",
             confirmPassword = "Password1"
         });
+
         Assert.Equal(HttpStatusCode.NoContent, register.StatusCode);
+        Assert.Equal("shopper@example.com", authClient.RegisterRequest!.Email);
 
         await SetAntiforgeryHeaderAsync(client);
         var currentUser = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
-        Assert.Equal("shopper@example.com", currentUser!.Email);
+        Assert.Equal(authClient.User.Id, currentUser!.Id);
+        Assert.Equal("shopper@example.com", currentUser.Email);
         Assert.Empty(currentUser.Roles);
 
         var logout = await client.PostAsJsonAsync("/api/auth/logout", new { });
@@ -81,14 +51,35 @@ public sealed class AuthTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task LoginFailureFromProductsApiIsForwarded()
+    {
+        var authClient = new RecordingProductsAuthApiClient
+        {
+            LoginResult = ProductsAuthResult.Failure(
+                StatusCodes.Status401Unauthorized,
+                JsonSerializer.SerializeToElement(new { message = "Invalid email or password." }))
+        };
+        using var factory = CreateFactory(authClient);
+        using var client = CreateClient(factory);
+
+        await SetAntiforgeryHeaderAsync(client);
+        var response = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "shopper@example.com",
+            password = "wrong",
+            rememberMe = false
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("shopper@example.com", authClient.LoginRequest!.Email);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
+    }
+
+    [Fact]
     public async Task AuthenticationMutationsRequireAntiforgeryToken()
     {
-        using var factory = CreateFactory();
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = true
-        });
+        using var factory = CreateFactory(new RecordingProductsAuthApiClient());
+        using var client = CreateClient(factory);
 
         var response = await client.PostAsJsonAsync("/api/auth/register", new
         {
@@ -96,27 +87,17 @@ public sealed class AuthTests : IAsyncLifetime
             password = "Password1",
             confirmPassword = "Password1"
         });
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
 
-    [Fact]
-    public async Task MigrationMatchesTheCurrentIdentityModel()
-    {
-        await using var db = CreateDbContext();
-        Assert.False(db.Database.HasPendingModelChanges());
-        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
     public async Task CartRequiresCookieAndForwardsAuthenticatedUser()
     {
+        var authClient = new RecordingProductsAuthApiClient();
         var cartClient = new RecordingCartApiClient();
-        using var factory = CreateFactory(cartClient);
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = true
-        });
+        using var factory = CreateFactory(authClient, cartClient);
+        using var client = CreateClient(factory);
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/cart")).StatusCode);
 
@@ -132,48 +113,89 @@ public sealed class AuthTests : IAsyncLifetime
         var response = await client.GetAsync("/api/cart");
 
         response.EnsureSuccessStatusCode();
-        Assert.True(Guid.TryParse(cartClient.UserId, out _));
+        Assert.Equal(authClient.User.Id.ToString(), cartClient.UserId);
     }
 
-    private ApplicationDbContext CreateDbContext() => new(
-        new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(ConnectionString).Options);
-
-    private WebApplicationFactory<Program> CreateFactory(ICartApiClient? cartApiClient = null) =>
+    private WebApplicationFactory<Program> CreateFactory(
+        IProductsAuthApiClient authClient,
+        ICartApiClient? cartApiClient = null) =>
         new WebApplicationFactory<Program>()
-        .WithWebHostBuilder(builder =>
-        {
-            builder.UseEnvironment("Testing");
-            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-                new Dictionary<string, string?>
-                {
-                    ["ProductsApi:BaseUrl"] = "https://example.invalid",
-                    ["ProductsApi:ApiKey"] = "test-only",
-                    ["DownstreamTokens:Issuer"] = "ecommerce-api",
-                    ["DownstreamTokens:Audience"] = "products-api",
-                    ["DownstreamTokens:LifetimeMinutes"] = "5",
-                    ["DownstreamTokens:PrivateKey"] = _signingKey.PrivateKey,
-                    ["DownstreamTokens:KeyId"] = "test-key-1"
-                }));
-            builder.ConfigureServices(services =>
+            .WithWebHostBuilder(builder =>
             {
-                services.AddDataProtection().UseEphemeralDataProtectionProvider();
-                services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
-                services.RemoveAll<ApplicationDbContext>();
-                services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(ConnectionString));
-
-                if (cartApiClient is not null)
+                builder.UseEnvironment("Testing");
+                builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                    new Dictionary<string, string?>
+                    {
+                        ["ProductsApi:BaseUrl"] = "https://example.invalid",
+                        ["ProductsApi:ApiKey"] = "test-only",
+                        ["DownstreamTokens:Issuer"] = "ecommerce-api",
+                        ["DownstreamTokens:Audience"] = "products-api",
+                        ["DownstreamTokens:LifetimeMinutes"] = "5",
+                        ["DownstreamTokens:PrivateKey"] = _signingKey.PrivateKey,
+                        ["DownstreamTokens:KeyId"] = "test-key-1"
+                    }));
+                builder.ConfigureServices(services =>
                 {
-                    services.RemoveAll<ICartApiClient>();
-                    services.AddSingleton(cartApiClient);
-                }
+                    services.AddDataProtection().UseEphemeralDataProtectionProvider();
+                    services.RemoveAll<IProductsAuthApiClient>();
+                    services.AddSingleton(authClient);
+
+                    if (cartApiClient is not null)
+                    {
+                        services.RemoveAll<ICartApiClient>();
+                        services.AddSingleton(cartApiClient);
+                    }
+                });
             });
+
+    private static HttpClient CreateClient(WebApplicationFactory<Program> factory) =>
+        factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = true
         });
+
+    private sealed class RecordingProductsAuthApiClient : IProductsAuthApiClient
+    {
+        public ProductsAuthUser User { get; } =
+            new(Guid.NewGuid(), "shopper@example.com", []);
+
+        public RegisterRequest? RegisterRequest { get; private set; }
+        public LoginRequest? LoginRequest { get; private set; }
+
+        public ProductsAuthResult? RegisterResult { get; init; }
+        public ProductsAuthResult? LoginResult { get; init; }
+
+        public Task<ProductsAuthResult> RegisterAsync(
+            RegisterRequest request,
+            string clientIp,
+            CancellationToken cancellationToken)
+        {
+            RegisterRequest = request;
+            var user = User with { Email = request.Email };
+            return Task.FromResult(
+                RegisterResult ?? ProductsAuthResult.Success(user, StatusCodes.Status200OK));
+        }
+
+        public Task<ProductsAuthResult> LoginAsync(
+            LoginRequest request,
+            string clientIp,
+            CancellationToken cancellationToken)
+        {
+            LoginRequest = request;
+            var user = User with { Email = request.Email };
+            return Task.FromResult(
+                LoginResult ?? ProductsAuthResult.Success(user, StatusCodes.Status200OK));
+        }
+    }
 
     private sealed class RecordingCartApiClient : ICartApiClient
     {
         public string? UserId { get; private set; }
 
-        public Task<DownstreamApiResult<CartResponse>> GetAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+        public Task<DownstreamApiResult<CartResponse>> GetAsync(
+            ClaimsPrincipal user,
+            CancellationToken cancellationToken)
         {
             UserId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             return Task.FromResult(EmptyCart());

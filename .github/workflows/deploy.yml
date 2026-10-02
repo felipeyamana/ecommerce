@@ -95,29 +95,11 @@ jobs:
           cd "${{ env.PUBLISH_DIR }}"
           zip -r "${{ env.PACKAGE_PATH }}" .
 
-      - name: Generate EF migration script
-        env:
-          ConnectionStrings__DefaultConnection: Server=localhost,1433;Database=ECommerceMigrationBuild;User Id=sa;Password=ECommerce_CI_123!;TrustServerCertificate=True
-        run: |
-          dotnet tool install --tool-path ./.tools dotnet-ef --version 10.0.*
-          ./.tools/dotnet-ef migrations script --idempotent --no-build \
-            --project ${{ env.PROJECT_PATH }} \
-            --startup-project ${{ env.PROJECT_PATH }} \
-            --configuration Release \
-            --output "${{ github.workspace }}/ef-migrations.sql"
-
       - name: Upload app package
         uses: actions/upload-artifact@v7
         with:
           name: ecommerce-package
           path: ${{ env.PACKAGE_PATH }}
-          if-no-files-found: error
-
-      - name: Upload migration script
-        uses: actions/upload-artifact@v7
-        with:
-          name: ecommerce-ef-migrations
-          path: ${{ github.workspace }}/ef-migrations.sql
           if-no-files-found: error
 
   deploy:

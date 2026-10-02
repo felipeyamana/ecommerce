@@ -1,5 +1,16 @@
 namespace ECommerce.Api.Products;
 
+public sealed record DownstreamApiResult(int StatusCode, string? Error)
+{
+    public bool IsSuccess => Error is null;
+
+    public static DownstreamApiResult Success(int statusCode) =>
+        new(statusCode, null);
+
+    public static DownstreamApiResult Failure(int statusCode, string error) =>
+        new(statusCode, error);
+}
+
 public sealed record DownstreamApiResult<T>(T? Value, int StatusCode, string? Error)
     where T : class
 {
