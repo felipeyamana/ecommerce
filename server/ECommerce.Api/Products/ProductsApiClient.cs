@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
@@ -8,16 +9,10 @@ internal sealed class ProductsApiClient(
     ProductsApiTokenProvider tokenProvider) : IProductsApiClient
 {
     public async Task<DownstreamApiResult<PagedProductsResponse>> GetProductsAsync(
-        int page,
-        int pageSize,
-        string? search,
+        ProductCatalogQuery query,
         CancellationToken cancellationToken)
     {
-        var requestUri = $"api/products?page={page}&pageSize={pageSize}";
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            requestUri += $"&search={Uri.EscapeDataString(search)}";
-        }
+        var requestUri = BuildProductsUri(query);
 
         using var request = await CreateRequestAsync(
             HttpMethod.Get,
@@ -34,6 +29,53 @@ internal sealed class ProductsApiClient(
             cancellationToken: cancellationToken)
             ?? throw new ProductsApiException("The products API returned an empty products response.");
         return DownstreamApiResult<PagedProductsResponse>.Success(products, (int)response.StatusCode);
+    }
+
+    private static string BuildProductsUri(ProductCatalogQuery query)
+    {
+        var parameters = new List<string>
+        {
+            $"page={query.Page}",
+            $"pageSize={query.PageSize}"
+        };
+
+        Add(parameters, "search", query.Search);
+        Add(parameters, "categoryId", query.CategoryId);
+        Add(parameters, "subCategoryId", query.SubCategoryId);
+        foreach (var brand in query.Brands ?? [])
+        {
+            Add(parameters, "brands", brand);
+        }
+        Add(parameters, "minPrice", query.MinPrice);
+        Add(parameters, "maxPrice", query.MaxPrice);
+        Add(parameters, "minRating", query.MinRating);
+        Add(parameters, "sort", query.Sort);
+
+        return $"api/products?{string.Join('&', parameters)}";
+    }
+
+    private static void Add(List<string> parameters, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parameters.Add($"{name}={Uri.EscapeDataString(value)}");
+        }
+    }
+
+    private static void Add(List<string> parameters, string name, int? value)
+    {
+        if (value.HasValue)
+        {
+            parameters.Add($"{name}={value.Value}");
+        }
+    }
+
+    private static void Add(List<string> parameters, string name, decimal? value)
+    {
+        if (value.HasValue)
+        {
+            parameters.Add($"{name}={value.Value.ToString(CultureInfo.InvariantCulture)}");
+        }
     }
 
     public async Task<DownstreamApiResult<ProductResponse>> GetProductAsync(

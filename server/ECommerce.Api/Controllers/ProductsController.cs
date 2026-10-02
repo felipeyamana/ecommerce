@@ -7,34 +7,17 @@ namespace ECommerce.Api.Controllers;
 [Route("api/[controller]")]
 public sealed class ProductsController(IProductsApiClient productsApiClient) : ControllerBase
 {
-    private const int MaxSearchLength = 200;
-
     [HttpGet]
     [ProducesResponseType(typeof(PagedProductsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status502BadGateway)]
     public async Task<ActionResult<PagedProductsResponse>> GetProducts(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 30,
-        [FromQuery] string? search = null,
+        [FromQuery] GetProductsRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (page < 1)
-        {
-            return BadRequest(new { message = "Page must be at least 1." });
-        }
-
-        if (pageSize is < 1 or > 30)
-        {
-            return BadRequest(new { message = "Page size must be between 1 and 30." });
-        }
-
-        var normalizedSearch = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
-        if (normalizedSearch?.Length > MaxSearchLength)
-        {
-            return BadRequest(new { message = $"Search must not exceed {MaxSearchLength} characters." });
-        }
-
-        var result = await productsApiClient.GetProductsAsync(page, pageSize, normalizedSearch, cancellationToken);
+        var result = await productsApiClient.GetProductsAsync(
+            request.ToCatalogQuery(),
+            cancellationToken);
         return Respond(result);
     }
 
