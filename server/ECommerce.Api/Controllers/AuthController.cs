@@ -1,8 +1,11 @@
+using System.Security.Claims;
+using System.Text.Json;
 using ECommerce.Api.Contracts;
-using ECommerce.Api.Models;
+using ECommerce.Api.Products;
 using Microsoft.AspNetCore.Antiforgery;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerce.Api.Controllers;
@@ -10,8 +13,7 @@ namespace ECommerce.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 public sealed class AuthController(
-    UserManager<ApplicationUser> users,
-    SignInManager<ApplicationUser> signIn,
+    IProductsAuthApiClient productsAuth,
     IAntiforgery antiforgery) : ControllerBase
 {
     [HttpGet("csrf")]
@@ -35,56 +37,47 @@ public sealed class AuthController(
 
     [HttpPost("register")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Register(RegisterRequest request)
+    public async Task<IActionResult> Register(
+        RegisterRequest request,
+        CancellationToken cancellationToken)
     {
         if (request.Password != request.ConfirmPassword)
         {
             return BadRequest(new { message = "Passwords do not match." });
         }
 
-        var email = request.Email.Trim();
-        var user = new ApplicationUser
+        var result = await productsAuth.RegisterAsync(
+            request,
+            GetClientIp(),
+            cancellationToken);
+
+        if (!result.IsSuccess)
         {
-            UserName = email,
-            Email = email
-        };
-
-        var result = await users.CreateAsync(user, request.Password);
-
-        if (!result.Succeeded)
-        {
-            foreach (var error in result.Errors)
-            {
-                ModelState.AddModelError(error.Code, error.Description);
-            }
-
-            return ValidationProblem(ModelState);
+            return AuthFailure(result);
         }
 
-        await signIn.SignInAsync(user, isPersistent: false);
+        await SignInAsync(result.User!, isPersistent: false);
         return NoContent();
     }
 
     [HttpPost("login")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Login(LoginRequest request)
+    public async Task<IActionResult> Login(
+        LoginRequest request,
+        CancellationToken cancellationToken)
     {
-        var user = await users.FindByEmailAsync(request.Email.Trim());
+        var result = await productsAuth.LoginAsync(
+            request,
+            GetClientIp(),
+            cancellationToken);
 
-        if (user is null)
+        if (!result.IsSuccess)
         {
-            return Unauthorized(new { message = "Invalid email or password." });
+            return AuthFailure(result);
         }
 
-        var result = await signIn.PasswordSignInAsync(
-            user,
-            request.Password,
-            request.RememberMe,
-            lockoutOnFailure: true);
-
-        return result.Succeeded
-            ? NoContent()
-            : Unauthorized(new { message = "Invalid email or password." });
+        await SignInAsync(result.User!, request.RememberMe);
+        return NoContent();
     }
 
     [Authorize]
@@ -92,22 +85,70 @@ public sealed class AuthController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
-        await signIn.SignOutAsync();
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return NoContent();
     }
 
     [Authorize]
     [HttpGet("me")]
-    public async Task<ActionResult<CurrentUserResponse>> Me()
+    public ActionResult<CurrentUserResponse> Me()
     {
-        var user = await users.GetUserAsync(User);
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var email = User.FindFirstValue(ClaimTypes.Email);
 
-        if (user is null)
+        if (!Guid.TryParse(idValue, out var id) || string.IsNullOrWhiteSpace(email))
         {
             return Unauthorized();
         }
 
-        var roles = await users.GetRolesAsync(user);
-        return Ok(new CurrentUserResponse(user.Id, user.Email!, roles.ToArray()));
+        var roles = User.FindAll(ClaimTypes.Role)
+            .Select(claim => claim.Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return Ok(new CurrentUserResponse(id, email, roles));
     }
+
+    private async Task SignInAsync(ProductsAuthUser user, bool isPersistent)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Email),
+            new(ClaimTypes.Email, user.Email)
+        };
+        claims.AddRange(user.Roles.Select(role => new Claim(ClaimTypes.Role, role)));
+
+        var identity = new ClaimsIdentity(
+            claims,
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            ClaimTypes.Name,
+            ClaimTypes.Role);
+        var properties = new AuthenticationProperties
+        {
+            AllowRefresh = true,
+            IsPersistent = isPersistent
+        };
+
+        if (isPersistent)
+        {
+            properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(30);
+        }
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity),
+            properties);
+    }
+
+    private IActionResult AuthFailure(ProductsAuthResult result)
+    {
+        var payload = result.Error ??
+            JsonSerializer.SerializeToElement(new { message = "Authentication failed." });
+
+        return new JsonResult(payload) { StatusCode = result.StatusCode };
+    }
+
+    private string GetClientIp() =>
+        HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

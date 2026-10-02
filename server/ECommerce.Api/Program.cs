@@ -1,12 +1,8 @@
 using ECommerce.Api;
-using ECommerce.Api.Data;
 using ECommerce.Api.Identity;
-using ECommerce.Api.Models;
 using ECommerce.Api.Products;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +34,13 @@ builder.Services.AddHttpClient("ProductsApiAuth", (serviceProvider, client) =>
     .AddHttpMessageHandler<ProductsApiExceptionHandler>()
     .AddProductsApiResilience();
 builder.Services.AddSingleton<ProductsApiTokenProvider>();
+builder.Services.AddHttpClient<IProductsAuthApiClient, ProductsAuthApiClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
+    client.BaseAddress = options.BaseUrl;
+    client.Timeout = TimeSpan.FromSeconds(30);
+})
+    .AddHttpMessageHandler<ProductsApiExceptionHandler>();
 builder.Services.AddHttpClient<IProductsApiClient, ProductsApiClient>((serviceProvider, client) =>
 {
     var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
@@ -52,47 +55,47 @@ builder.Services.AddHttpClient<ICartApiClient, CartApiClient>((serviceProvider, 
 })
     .AddHttpMessageHandler<ProductsApiExceptionHandler>()
     .AddProductsApiResilience();
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services
-    .AddIdentityCore<ApplicationUser>(options =>
-    {
-        options.User.RequireUniqueEmail = true;
-        options.Password.RequiredLength = 8;
-        options.Password.RequireNonAlphanumeric = false;
-    })
-    .AddRoles<IdentityRole<Guid>>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager();
-
-builder.Services
-    .AddAuthentication(IdentityConstants.ApplicationScheme)
-    .AddIdentityCookies();
-
-builder.Services.ConfigureApplicationCookie(options =>
+builder.Services.AddHttpClient<IAccountApiClient, AccountApiClient>((serviceProvider, client) =>
 {
-    options.Cookie.Name = "__Host-ecommerce-auth";
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    options.Cookie.SameSite = SameSiteMode.Strict;
-    options.SlidingExpiration = true;
-    options.ExpireTimeSpan = TimeSpan.FromHours(8);
-    options.Events = new CookieAuthenticationEvents
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
+    client.BaseAddress = options.BaseUrl;
+})
+    .AddHttpMessageHandler<ProductsApiExceptionHandler>()
+    .AddProductsApiResilience();
+builder.Services.AddHttpClient<ICustomerAddressesApiClient, CustomerAddressesApiClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
+    client.BaseAddress = options.BaseUrl;
+})
+    .AddHttpMessageHandler<ProductsApiExceptionHandler>()
+    .AddProductsApiResilience();
+
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
     {
-        OnRedirectToLogin = context =>
+        options.Cookie.Name = "__Host-ecommerce-auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.Events = new CookieAuthenticationEvents
         {
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            return Task.CompletedTask;
-        },
-        OnRedirectToAccessDenied = context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return Task.CompletedTask;
-        }
-    };
-});
+            OnRedirectToLogin = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            },
+            OnRedirectToAccessDenied = context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 builder.Services.AddAntiforgery(options =>
 {
@@ -124,7 +127,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.UseExceptionHandler(); 
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {

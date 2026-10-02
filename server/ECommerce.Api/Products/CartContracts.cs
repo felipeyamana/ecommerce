@@ -23,8 +23,3 @@ public sealed record CartItemResponse(
     decimal? LineTotal,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);
-
-public sealed record CartApiResult(CartResponse? Value, int StatusCode, string? Error)
-{
-    public bool IsSuccess => Error is null;
-}

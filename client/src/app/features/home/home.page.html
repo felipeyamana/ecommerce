@@ -1,120 +1,446 @@
-<main class="mx-auto w-[min(calc(100%-2rem),75rem)] py-10 sm:py-14">
-  <header class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-      <p class="mb-2 text-xs font-extrabold tracking-widest text-blue-700 uppercase">Our catalog</p>
-      <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Products</h1>
-      <p class="mt-2 mb-0 text-slate-500">Browse the latest products available in our catalog.</p>
-    </div>
+<main class="mx-auto w-[min(calc(100%-2rem),100rem)] py-8 sm:py-12">
+  <div class="grid items-start gap-6 xl:grid-cols-[14rem_minmax(0,1fr)_18rem]">
+    <aside
+      class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-24"
+      aria-label="Product categories"
+    >
+      <p class="m-0 text-xs font-extrabold tracking-widest text-slate-500 uppercase">Categories</p>
 
-    @if (products()) {
-      <p class="m-0 text-sm text-slate-500">
-        {{ products()!.totalCount | number }} {{ products()!.totalCount === 1 ? 'product' : 'products' }}
-      </p>
-    }
-  </header>
+      <button
+        class="mt-4 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition"
+        [class.bg-blue-50]="!catalogQuery().categoryId && !catalogQuery().subCategoryId"
+        [class.text-blue-700]="!catalogQuery().categoryId && !catalogQuery().subCategoryId"
+        [class.text-slate-600]="catalogQuery().categoryId || catalogQuery().subCategoryId"
+        type="button"
+        (click)="selectCategory(null)"
+      >
+        <span
+          class="grid size-7 place-items-center rounded-lg bg-slate-100 text-base"
+          aria-hidden="true"
+          >⌂</span
+        >
+        All products
+      </button>
 
-  @if (loading()) {
-    <section class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading products" aria-busy="true">
-      @for (item of [1, 2, 3, 4, 5, 6]; track item) {
-        <div class="h-64 animate-pulse rounded-2xl border border-slate-200 bg-white p-6">
-          <div class="mb-5 h-4 w-24 rounded bg-slate-200"></div>
-          <div class="mb-3 h-6 w-4/5 rounded bg-slate-200"></div>
-          <div class="mb-2 h-4 w-full rounded bg-slate-100"></div>
-          <div class="h-4 w-2/3 rounded bg-slate-100"></div>
+      @if (categoriesLoading()) {
+        <div class="mt-4 space-y-3" aria-label="Loading categories" aria-busy="true">
+          @for (item of [1, 2, 3, 4, 5]; track item) {
+            <div class="h-10 animate-pulse rounded-xl bg-slate-100"></div>
+          }
+        </div>
+      } @else if (categoriesError()) {
+        <div class="mt-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-800" role="alert">
+          <p class="m-0">Categories could not be loaded.</p>
+          <button class="mt-2 font-bold underline" type="button" (click)="loadCategories(true)">
+            Try again
+          </button>
+        </div>
+      } @else {
+        <div class="mt-2 grid gap-1">
+          @for (category of categoryGroups(); track category.id) {
+            <button
+              class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition hover:bg-blue-50 hover:text-blue-700"
+              [class.bg-blue-50]="isCategorySelected(category)"
+              [class.text-blue-700]="isCategorySelected(category)"
+              [class.text-slate-700]="!isCategorySelected(category)"
+              type="button"
+              (click)="selectCategory(category)"
+            >
+              <span
+                class="grid size-7 place-items-center rounded-lg bg-slate-100 text-base"
+                aria-hidden="true"
+                >▣</span
+              >
+              <span class="min-w-0 truncate">{{ category.name }}</span>
+            </button>
+
+            @for (child of category.children; track child.id) {
+              <button
+                class="ml-4 flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-blue-50 hover:text-blue-700"
+                [class.bg-blue-50]="isCategorySelected(child)"
+                [class.font-bold]="isCategorySelected(child)"
+                [class.text-blue-700]="isCategorySelected(child)"
+                [class.text-slate-600]="!isCategorySelected(child)"
+                type="button"
+                (click)="selectCategory(child)"
+              >
+                <span class="text-slate-300" aria-hidden="true">—</span>
+                <span class="min-w-0 truncate">{{ child.name }}</span>
+              </button>
+            }
+          }
+        </div>
+      }
+    </aside>
+
+    <section class="min-w-0" aria-labelledby="products-heading">
+      <header class="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="mb-2 text-xs font-extrabold tracking-widest text-blue-700 uppercase">
+            Our catalog
+          </p>
+          <h1
+            class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl"
+            id="products-heading"
+          >
+            {{ searchTerm() ? 'Search results' : 'Products' }}
+          </h1>
+          <p class="mt-2 mb-0 text-slate-500">
+            {{
+              searchTerm()
+                ? 'Products matching “' + searchTerm() + '”'
+                : 'Browse the latest products available in our catalog.'
+            }}
+          </p>
+        </div>
+
+        @if (products()) {
+          <p class="m-0 text-sm whitespace-nowrap text-slate-500">
+            {{ products()!.totalCount | number }}
+            {{ products()!.totalCount === 1 ? 'product' : 'products' }}
+          </p>
+        }
+      </header>
+
+      @if (loading()) {
+        <div
+          class="grid gap-5 sm:grid-cols-2 2xl:grid-cols-3"
+          aria-label="Loading products"
+          aria-busy="true"
+        >
+          @for (item of [1, 2, 3, 4, 5, 6]; track item) {
+            <div class="h-96 animate-pulse rounded-2xl border border-slate-200 bg-white p-6">
+              <div class="-mx-6 -mt-6 mb-5 h-44 rounded-t-2xl bg-slate-200"></div>
+              <div class="mb-3 h-4 w-24 rounded bg-slate-200"></div>
+              <div class="mb-3 h-6 w-4/5 rounded bg-slate-200"></div>
+              <div class="mb-2 h-4 w-full rounded bg-slate-100"></div>
+              <div class="h-4 w-2/3 rounded bg-slate-100"></div>
+            </div>
+          }
+        </div>
+      } @else if (error()) {
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center" role="alert">
+          <h2 class="mt-0 text-lg font-bold text-rose-900">Products unavailable</h2>
+          <p class="text-rose-800">{{ error() }}</p>
+          <button
+            class="rounded-xl bg-rose-800 px-4 py-2.5 font-bold text-white hover:bg-rose-900"
+            type="button"
+            (click)="reload()"
+          >
+            Try again
+          </button>
+        </div>
+      } @else if (products()?.items?.length) {
+        @if (cartError()) {
+          <p class="mb-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+            {{ cartError() }}
+          </p>
+        }
+
+        <div class="grid gap-5 sm:grid-cols-2 2xl:grid-cols-3" aria-label="Product listing">
+          @for (product of products()!.items; track product.id) {
+            <article
+              class="flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+            >
+              <a
+                class="-mx-6 -mt-6 mb-5 block aspect-[16/10] overflow-hidden rounded-t-2xl bg-slate-100 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-blue-600"
+                [routerLink]="['/products', product.id]"
+                [attr.aria-label]="'View ' + product.name"
+              >
+                <img
+                  class="size-full object-cover"
+                  [src]="categoryImage(product.subCategoryId)"
+                  [alt]="product.categoryName + ' category placeholder'"
+                  width="1254"
+                  height="1254"
+                  loading="lazy"
+                />
+              </a>
+
+              <div class="mb-4 flex items-start justify-between gap-3">
+                <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                  {{ product.subCategoryName || product.categoryName }}
+                </span>
+                @if (product.averageRating !== null) {
+                  <span
+                    class="text-sm font-semibold text-amber-600"
+                    [attr.aria-label]="product.averageRating + ' out of 5 stars'"
+                  >
+                    ★ {{ product.averageRating | number: '1.1-1' }}
+                  </span>
+                }
+              </div>
+
+              <p class="mb-1 text-sm font-semibold text-slate-500">
+                {{ product.brand || 'ECommerce' }}
+              </p>
+              <h2 class="my-0 text-xl font-bold tracking-tight">
+                <a
+                  class="text-slate-900 no-underline hover:text-blue-700"
+                  [routerLink]="['/products', product.id]"
+                  >{{ product.name }}</a
+                >
+              </h2>
+              <p class="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
+                {{ product.description || 'No description is available for this product.' }}
+              </p>
+
+              <div class="mt-auto flex items-end gap-2 pt-5">
+                @if (product.currentPrice !== null) {
+                  <strong class="text-2xl text-slate-900">
+                    {{ product.currentPrice | currency: product.priceCurrencyCode || 'USD' }}
+                  </strong>
+                  @if (product.listPrice !== null && product.listPrice > product.currentPrice) {
+                    <span class="pb-0.5 text-sm text-slate-400 line-through">
+                      {{ product.listPrice | currency: product.priceCurrencyCode || 'USD' }}
+                    </span>
+                  }
+                } @else {
+                  <span class="font-semibold text-slate-500">Price unavailable</span>
+                }
+              </div>
+
+              <button
+                class="mt-5 w-full rounded-xl bg-blue-700 px-5 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                type="button"
+                [disabled]="
+                  !product.isActive || product.currentPrice === null || addingProductId() !== null
+                "
+                (click)="addToCart(product)"
+              >
+                @if (addingProductId() === product.id) {
+                  Adding…
+                } @else if (addedProductId() === product.id) {
+                  Added to cart
+                } @else if (!product.isActive) {
+                  Unavailable
+                } @else {
+                  Add to cart
+                }
+              </button>
+            </article>
+          }
+        </div>
+
+        @if (products()!.totalPages > 1) {
+          <nav class="mt-8 flex items-center justify-center gap-4" aria-label="Product pages">
+            <button
+              class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              type="button"
+              [disabled]="products()!.pageNumber === 1"
+              (click)="loadPage(products()!.pageNumber - 1)"
+            >
+              Previous
+            </button>
+            <span class="text-sm text-slate-500"
+              >Page {{ products()!.pageNumber }} of {{ products()!.totalPages }}</span
+            >
+            <button
+              class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              type="button"
+              [disabled]="products()!.pageNumber === products()!.totalPages"
+              (click)="loadPage(products()!.pageNumber + 1)"
+            >
+              Next
+            </button>
+          </nav>
+        }
+      } @else {
+        <div class="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <h2 class="mt-0 text-xl font-bold text-slate-900">
+            {{ activeFilterCount() || searchTerm() ? 'No matching products' : 'No products yet' }}
+          </h2>
+          @if (activeFilterCount()) {
+            <p class="text-slate-500">Try removing one or more filters.</p>
+            <button
+              class="font-bold text-blue-700 hover:underline"
+              type="button"
+              (click)="clearFilters()"
+            >
+              Clear filters
+            </button>
+          } @else if (searchTerm()) {
+            <p class="text-slate-500">Try a different product name, brand, or description.</p>
+            <a class="font-bold text-blue-700 no-underline hover:underline" routerLink="/"
+              >Clear search</a
+            >
+          } @else {
+            <p class="mb-0 text-slate-500">
+              Products will appear here when they are added to the catalog.
+            </p>
+          }
         </div>
       }
     </section>
-  } @else if (error()) {
-    <section class="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center" role="alert">
-      <h2 class="mt-0 text-lg font-bold text-rose-900">Products unavailable</h2>
-      <p class="text-rose-800">{{ error() }}</p>
-      <button
-        class="rounded-xl bg-rose-800 px-4 py-2.5 font-bold text-white transition hover:bg-rose-900"
-        type="button"
-        (click)="loadPage(products()?.pageNumber ?? 1)"
-      >
-        Try again
-      </button>
-    </section>
-  } @else if (products()?.items?.length) {
-    <section class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Product listing">
-      @for (product of products()!.items; track product.id) {
-        <a
-          class="flex min-h-64 flex-col rounded-2xl border border-slate-200 bg-white p-6 text-inherit no-underline shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-blue-600"
-          [routerLink]="['/products', product.id]"
-          [attr.aria-label]="'View ' + product.name"
+
+    <aside
+      class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-24"
+      aria-label="Product filters"
+    >
+      <div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div class="flex items-center gap-2">
+          <h2 class="m-0 text-xl font-extrabold text-slate-900">Filters</h2>
+          @if (activeFilterCount()) {
+            <span
+              class="grid min-w-6 place-items-center rounded-full bg-blue-700 px-1.5 py-0.5 text-xs font-bold text-white"
+              >{{ activeFilterCount() }}</span
+            >
+          }
+        </div>
+        <button
+          class="text-sm font-bold text-blue-700 hover:underline disabled:text-slate-400"
+          type="button"
+          [disabled]="!activeFilterCount()"
+          (click)="clearFilters()"
         >
-          <div class="-mx-6 -mt-6 mb-5 aspect-[16/10] overflow-hidden rounded-t-2xl bg-slate-100">
-            <img
-              class="size-full object-cover"
-              [src]="categoryImage(product.subCategoryId)"
-              [alt]="product.categoryName + ' category placeholder'"
-              width="1254"
-              height="1254"
-              loading="lazy"
+          Clear all
+        </button>
+      </div>
+
+      <section class="border-b border-slate-200 py-5" aria-labelledby="price-filter-heading">
+        <h3 class="m-0 text-sm font-extrabold text-slate-900" id="price-filter-heading">
+          Price range
+        </h3>
+        @if (products()?.facets; as facets) {
+          @if (facets.minPrice !== null && facets.maxPrice !== null) {
+            <p class="mt-2 mb-0 text-xs text-slate-500">
+              Available: {{ facets.minPrice | number: '1.0-2' }}–{{
+                facets.maxPrice | number: '1.0-2'
+              }}
+            </p>
+          }
+        }
+        <form class="mt-3" (submit)="$event.preventDefault(); applyPriceFilters()">
+          <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <label class="sr-only" for="filter-min-price">Minimum price</label>
+            <input
+              class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="filter-min-price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Min"
+              [value]="minPriceDraft()"
+              (input)="updatePriceDraft('min', $event)"
+            />
+            <span class="text-slate-400" aria-hidden="true">–</span>
+            <label class="sr-only" for="filter-max-price">Maximum price</label>
+            <input
+              class="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="filter-max-price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Max"
+              [value]="maxPriceDraft()"
+              (input)="updatePriceDraft('max', $event)"
             />
           </div>
+          @if (filterError()) {
+            <p class="mt-2 mb-0 text-xs font-semibold text-rose-700" role="alert">
+              {{ filterError() }}
+            </p>
+          }
+          <button
+            class="mt-3 w-full rounded-lg border border-blue-200 px-3 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
+            type="submit"
+          >
+            Apply price
+          </button>
+        </form>
+      </section>
 
-          <div class="mb-4 flex items-start justify-between gap-3">
-            <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
-              {{ product.subCategoryName || product.categoryName }}
-            </span>
-            @if (product.averageRating !== null) {
-              <span class="text-sm font-semibold text-amber-600" [attr.aria-label]="product.averageRating + ' out of 5 stars'">
-                ★ {{ product.averageRating | number: '1.1-1' }}
+      <section class="border-b border-slate-200 py-5" aria-labelledby="brand-filter-heading">
+        <h3 class="m-0 text-sm font-extrabold text-slate-900" id="brand-filter-heading">Brand</h3>
+        <label class="relative mt-3 block">
+          <span class="sr-only">Search brands</span>
+          <span
+            class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400"
+            aria-hidden="true"
+            >⌕</span
+          >
+          <input
+            class="w-full rounded-lg border border-slate-300 py-2 pr-3 pl-8 text-sm outline-none focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+            type="search"
+            placeholder="Search brands…"
+            [value]="brandSearch()"
+            (input)="brandSearch.set($any($event.target).value)"
+          />
+        </label>
+
+        <div class="mt-3 grid gap-2.5">
+          @for (facet of visibleBrandFacets(); track facet.brand) {
+            <label
+              class="flex cursor-pointer items-center gap-2.5 rounded-lg text-sm text-slate-700"
+              [class.bg-amber-50]="facet.unavailable"
+              [class.p-2]="facet.unavailable"
+            >
+              <input
+                class="size-4 rounded border-slate-300 accent-blue-700"
+                type="checkbox"
+                [checked]="facet.selected"
+                (change)="toggleBrand(facet.brand, $any($event.target).checked)"
+              />
+              <span class="min-w-0 flex-1 truncate" [class.font-semibold]="facet.selected">
+                {{ facet.brand }}
               </span>
-            }
-          </div>
-
-          <p class="mb-1 text-sm font-semibold text-slate-500">{{ product.brand || 'ECommerce' }}</p>
-          <h2 class="my-0 text-xl font-bold tracking-tight text-slate-900">{{ product.name }}</h2>
-          <p class="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">
-            {{ product.description || 'No description is available for this product.' }}
-          </p>
-
-          <div class="mt-auto flex items-end gap-2 pt-5">
-            @if (product.currentPrice !== null) {
-              <strong class="text-2xl text-slate-900">
-                {{ product.currentPrice | currency: (product.priceCurrencyCode || 'USD') }}
-              </strong>
-              @if (product.listPrice !== null && product.listPrice > product.currentPrice) {
-                <span class="pb-0.5 text-sm text-slate-400 line-through">
-                  {{ product.listPrice | currency: (product.priceCurrencyCode || 'USD') }}
+              @if (facet.unavailable) {
+                <span class="text-xs font-semibold whitespace-nowrap text-amber-700">
+                  No matches
                 </span>
+              } @else {
+                <span class="text-xs text-slate-400">{{ facet.count | number }}</span>
               }
-            } @else {
-              <span class="font-semibold text-slate-500">Price unavailable</span>
-            }
-          </div>
-        </a>
-      }
-    </section>
+            </label>
+          } @empty {
+            <p class="m-0 text-sm text-slate-500">No brands available.</p>
+          }
+        </div>
 
-    @if (products()!.totalPages > 1) {
-      <nav class="mt-8 flex items-center justify-center gap-4" aria-label="Product pages">
-        <button
-          class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-          type="button"
-          [disabled]="products()!.pageNumber === 1"
-          (click)="loadPage(products()!.pageNumber - 1)"
-        >
-          Previous
-        </button>
-        <span class="text-sm text-slate-500">Page {{ products()!.pageNumber }} of {{ products()!.totalPages }}</span>
-        <button
-          class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-          type="button"
-          [disabled]="products()!.pageNumber === products()!.totalPages"
-          (click)="loadPage(products()!.pageNumber + 1)"
-        >
-          Next
-        </button>
-      </nav>
-    }
-  } @else {
-    <section class="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-      <h2 class="mt-0 text-xl font-bold text-slate-900">No products yet</h2>
-      <p class="mb-0 text-slate-500">Products will appear here when they are added to the catalog.</p>
-    </section>
-  }
+        @if (hasMoreBrands()) {
+          <button
+            class="mt-3 text-sm font-bold text-blue-700 hover:underline"
+            type="button"
+            (click)="showAllBrands.set(!showAllBrands())"
+          >
+            {{ showAllBrands() ? 'Show less' : 'Show more' }}
+          </button>
+        }
+      </section>
+
+      <section class="pt-5" aria-labelledby="rating-filter-heading">
+        <h3 class="m-0 text-sm font-extrabold text-slate-900" id="rating-filter-heading">Rating</h3>
+        <div class="mt-3 grid gap-2.5">
+          <label class="flex cursor-pointer items-center gap-2.5 text-sm text-slate-700">
+            <input
+              class="size-4 accent-blue-700"
+              type="radio"
+              name="rating"
+              [checked]="catalogQuery().minRating === undefined"
+              (change)="selectRating(null)"
+            />
+            <span>Any rating</span>
+          </label>
+          @for (facet of products()?.facets?.ratings ?? []; track facet.minRating) {
+            <label class="flex cursor-pointer items-center gap-2.5 text-sm text-slate-700">
+              <input
+                class="size-4 accent-blue-700"
+                type="radio"
+                name="rating"
+                [checked]="catalogQuery().minRating === facet.minRating"
+                (change)="selectRating(facet.minRating)"
+              />
+              <span class="flex-1 text-amber-500">
+                @for (star of [1, 2, 3, 4, 5]; track star) {
+                  <span [class.text-slate-300]="star > facet.minRating">★</span>
+                }
+                <span class="ml-1 text-slate-600">& up</span>
+              </span>
+              <span class="text-xs text-slate-400">{{ facet.count | number }}</span>
+            </label>
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
 </main>

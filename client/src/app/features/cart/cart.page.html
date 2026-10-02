@@ -49,10 +49,10 @@
 
               <div class="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
                 <span class="text-sm font-bold text-slate-700">Quantity</span>
-                <button class="size-9 rounded-lg border border-slate-300 bg-white font-bold" type="button" [disabled]="changingProductId() === item.productId || item.quantity <= 1" (click)="changeQuantity(item.productId, item.quantity - 1)">−</button>
+                <button class="size-9 rounded-lg border border-slate-300 bg-white font-bold disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60" type="button" [disabled]="changingProductId() !== null || clearing() || item.quantity <= 1" (click)="changeQuantity(item.productId, item.quantity - 1)">−</button>
                 <span class="min-w-6 text-center font-bold">{{ item.quantity }}</span>
-                <button class="size-9 rounded-lg border border-slate-300 bg-white font-bold" type="button" [disabled]="changingProductId() === item.productId || item.quantity >= 99" (click)="changeQuantity(item.productId, item.quantity + 1)">+</button>
-                <button class="ml-auto text-sm font-bold text-rose-700 hover:underline disabled:opacity-50" type="button" [disabled]="changingProductId() === item.productId" (click)="remove(item.productId)">Remove</button>
+                <button class="size-9 rounded-lg border border-slate-300 bg-white font-bold disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-60" type="button" [disabled]="changingProductId() !== null || clearing() || item.quantity >= 99" (click)="changeQuantity(item.productId, item.quantity + 1)">+</button>
+                <button class="ml-auto text-sm font-bold text-rose-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50" type="button" [disabled]="changingProductId() !== null || clearing()" (click)="remove(item.productId)">Remove</button>
               </div>
             </article>
           }
@@ -67,7 +67,7 @@
             <p class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Review the highlighted item changes before checkout.</p>
           }
           <button class="mt-5 w-full rounded-full bg-amber-400 px-5 py-3 font-bold text-slate-900 disabled:opacity-50" type="button" disabled>Checkout coming next</button>
-          <button class="mt-3 w-full bg-transparent py-2 text-sm font-bold text-rose-700 hover:underline disabled:opacity-50" type="button" [disabled]="clearing()" (click)="clear()">{{ clearing() ? 'Clearing…' : 'Clear cart' }}</button>
+          <button class="mt-3 w-full bg-transparent py-2 text-sm font-bold text-rose-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50" type="button" [disabled]="changingProductId() !== null || clearing()" (click)="clear()">{{ clearing() ? 'Clearing…' : 'Clear cart' }}</button>
         </aside>
       </div>
     }

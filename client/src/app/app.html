@@ -1,48 +1,101 @@
-<header class="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur-xl">
-  <nav
-    class="mx-auto flex min-h-18 w-[min(calc(100%-1rem),75rem)] items-center justify-between sm:w-[min(calc(100%-2rem),75rem)]"
-    aria-label="Primary navigation"
-  >
-    <a
-      class="text-xl font-extrabold tracking-tight text-slate-900 no-underline"
-      routerLink="/"
-      aria-label="ECommerce home"
-    >
-      ECommerce
-    </a>
+<header class="site-header">
+  <nav class="navigation" aria-label="Primary navigation">
+    <a class="brand" routerLink="/" aria-label="ECommerce home">ECommerce<span>.</span></a>
 
-    <div class="flex items-center gap-2.5">
+    <div class="catalog-links">
+      <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" ariaCurrentWhenActive="page">Products</a>
+      <details class="categories" #categories (keydown.escape)="categories.open = false" (focusout)="closeMenu($event, categories)">
+        <summary class="nav-link">Categories <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+        <div class="category-panel">
+          <span class="panel-label">Explore the catalog</span>
+          <a routerLink="/" (click)="categories.open = false">All products <span aria-hidden="true">→</span></a>
+          @if (categoriesLoading()) {
+            <div class="mt-4 text-sm text-slate-500" aria-live="polite">Loading categories…</div>
+          } @else if (categoriesError()) {
+            <div class="mt-4 flex items-center justify-between gap-3 text-sm text-slate-500" role="alert">
+              <span>Categories could not be loaded.</span>
+              <button class="border-0 bg-transparent font-bold text-blue-700" type="button" (click)="loadCategories(true)">Try again</button>
+            </div>
+          } @else {
+            @if (categoryGroups().length) {
+              <div class="mt-4 grid gap-4">
+                @for (category of categoryGroups(); track category.id) {
+                  <section class="border-t border-slate-200 pt-3.5">
+                    <h2 class="m-0 text-[15px] font-bold text-slate-900">{{ category.name }}</h2>
+                    @if (category.children.length) {
+                      <ul class="mt-2 flex list-none flex-wrap gap-x-3.5 gap-y-2 p-0">
+                        @for (child of category.children; track child.id) {
+                          <li class="text-sm leading-5 text-slate-500">{{ child.name }}</li>
+                        }
+                      </ul>
+                    }
+                  </section>
+                }
+              </div>
+            } @else {
+              <div class="mt-4 text-sm text-slate-500">No categories available.</div>
+            }
+          }
+        </div>
+      </details>
+      <button class="nav-link" type="button" (click)="showComingSoon('Deals')">Deals</button>
+      <button class="nav-link" type="button" (click)="showComingSoon('New arrivals')">New Arrivals</button>
+    </div>
+
+    <form class="search" role="search" (submit)="search($event, searchInput.value)">
+      <button type="submit" aria-label="Search products"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg></button>
+      <input #searchInput type="search" name="q" placeholder="Search products..." aria-label="Search products" maxlength="200" [value]="searchQuery()" />
+    </form>
+
+    <div class="account-links">
       @if (auth.isAuthenticated()) {
-        <a class="rounded-xl px-3 py-2.5 text-sm font-bold text-blue-700 no-underline hover:bg-blue-50" routerLink="/cart">
-          Cart@if (cart.totalQuantity() > 0) { ({{ cart.totalQuantity() }}) }
+        <details class="account-menu" #accountMenu (keydown.escape)="accountMenu.open = false" (focusout)="closeMenu($event, accountMenu)">
+          <summary class="account-trigger" aria-label="Open account menu">
+            <img src="/avatar-placeholder.svg" alt="" width="40" height="40" />
+            <span class="account-copy">
+              <small>My account</small>
+              <strong>Hello, {{ auth.displayName() }}</strong>
+            </span>
+            <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </summary>
+          <div class="account-panel">
+            <div class="account-panel-header">
+              <strong>{{ auth.displayName() }}</strong>
+              <span>{{ auth.currentUser()?.email }}</span>
+            </div>
+            <a routerLink="/account" routerLinkActive="account-item-active" (click)="accountMenu.open = false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4.5 21a7.5 7.5 0 0 1 15 0" /></svg>
+              My account
+            </a>
+            <a routerLink="/orders" routerLinkActive="account-item-active" (click)="accountMenu.open = false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18H6zM9 8h6M9 12h6M9 16h4" /></svg>
+              Orders
+            </a>
+            <a routerLink="/addresses" routerLinkActive="account-item-active" (click)="accountMenu.open = false">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2.5" /></svg>
+              Addresses
+            </a>
+            <button type="button" [disabled]="loggingOut()" (click)="accountMenu.open = false; logout()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" /></svg>
+              {{ loggingOut() ? 'Logging out…' : 'Log out' }}
+            </button>
+          </div>
+        </details>
+        <a class="cart-link" routerLink="/cart" routerLinkActive="active" [attr.aria-label]="cart.totalQuantity() > 0 ? 'Cart, ' + cart.totalQuantity() + ' items' : 'Cart'">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 3h2l2.5 12h12l2-8H5" /><circle cx="8" cy="20" r="1" /><circle cx="18" cy="20" r="1" /></svg>
+          @if (cart.totalQuantity() > 0) { <span class="cart-badge">{{ cart.totalQuantity() > 99 ? '99+' : cart.totalQuantity() }}</span> }
         </a>
-        <span class="hidden text-sm text-slate-600 sm:inline">{{ auth.currentUser()?.email }}</span>
-        <button
-          class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 disabled:opacity-60 sm:px-4"
-          type="button"
-          [disabled]="loggingOut()"
-          (click)="logout()"
-        >
-          {{ loggingOut() ? 'Logging out…' : 'Log out' }}
-        </button>
       } @else if (auth.initialized()) {
-      <a
-        class="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 no-underline transition hover:border-slate-400 hover:bg-slate-100 sm:px-4"
-        routerLink="/login"
-        routerLinkActive="border-slate-400 bg-slate-100"
-      >
-        Log in
-      </a>
-      <a
-        class="rounded-xl bg-blue-700 px-3 py-2.5 text-sm font-bold text-white no-underline transition hover:bg-blue-800 sm:px-4"
-        routerLink="/register"
-        routerLinkActive="bg-blue-800"
-      >
-        Sign up
-      </a>
+        <a class="login-link" routerLink="/login" routerLinkActive="active">Log in</a>
+        <a class="signup-link" routerLink="/register">Sign up</a>
       }
     </div>
   </nav>
+  <div aria-live="polite" role="status">
+    @if (announcement()) {
+      <div class="announcement"><span>{{ announcement() }}</span><button type="button" aria-label="Dismiss notification" (click)="announcement.set('')">×</button></div>
+    }
+  </div>
 </header>
 
 <router-outlet />

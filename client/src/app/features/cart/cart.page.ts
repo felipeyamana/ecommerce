@@ -36,7 +36,7 @@ export class CartPage {
 
   changeQuantity(productId: number, quantity: number): void {
     const cart = this.cartService.cart();
-    if (!cart || quantity < 1 || quantity > 99) return;
+    if (!cart || this.changingProductId() !== null || this.clearing() || quantity < 1 || quantity > 99) return;
 
     this.changingProductId.set(productId);
     this.runMutation(
@@ -47,7 +47,7 @@ export class CartPage {
 
   remove(productId: number): void {
     const cart = this.cartService.cart();
-    if (!cart) return;
+    if (!cart || this.changingProductId() !== null || this.clearing()) return;
 
     this.changingProductId.set(productId);
     this.runMutation(this.cartService.removeItem(productId, cart.version), () => this.changingProductId.set(null));
@@ -55,7 +55,7 @@ export class CartPage {
 
   clear(): void {
     const cart = this.cartService.cart();
-    if (!cart) return;
+    if (!cart || this.changingProductId() !== null || this.clearing()) return;
 
     this.clearing.set(true);
     this.runMutation(this.cartService.clear(cart.version), () => this.clearing.set(false));
@@ -69,7 +69,7 @@ export class CartPage {
   private handleError(error: HttpErrorResponse): void {
     if (error.status === 409) {
       this.error.set('Your cart changed in another request. We refreshed it for you.');
-      this.cartService.load().subscribe({ error: () => undefined });
+      this.cartService.load(true).subscribe({ error: () => undefined });
       return;
     }
 

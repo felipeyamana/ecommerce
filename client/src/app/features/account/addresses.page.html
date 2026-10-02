@@ -1,0 +1,278 @@
+<main class="mx-auto w-[min(calc(100%-2rem),68rem)] py-10 sm:py-14">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <p class="mb-2 text-sm font-bold text-blue-700">Your account</p>
+      <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Addresses</h1>
+      <p class="mt-2 mb-0 text-slate-500">Manage the delivery addresses saved to your account.</p>
+    </div>
+    <button
+      class="rounded-xl bg-blue-700 px-5 py-3 font-bold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55"
+      type="button"
+      [disabled]="isBusy()"
+      (click)="startAdd()"
+    >
+      Add address
+    </button>
+  </div>
+
+  @if (error()) {
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+      <span>{{ error() }}</span>
+      @if (!loading()) {
+        <button class="font-bold underline" type="button" (click)="load(true)">Reload addresses</button>
+      }
+    </div>
+  }
+
+  @if (success()) {
+    <p class="mt-6 rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800" role="status">{{ success() }}</p>
+  }
+
+  @if (formOpen()) {
+    <section class="mt-8 rounded-2xl border border-blue-200 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="address-form-title">
+      <div class="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h2 class="m-0 text-xl font-bold text-slate-900" id="address-form-title">
+            {{ editingAddressId() ? 'Edit address' : 'Add a new address' }}
+          </h2>
+          <p class="mt-1 mb-0 text-sm leading-6 text-slate-500">Fields marked with * are required.</p>
+        </div>
+        <button class="text-sm font-bold text-slate-500 hover:text-slate-800" type="button" [disabled]="saving()" (click)="cancelForm()">
+          Cancel
+        </button>
+      </div>
+
+      <form class="grid gap-5" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-bold text-slate-800" for="address-label">Label</label>
+            <input
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="address-label"
+              type="text"
+              formControlName="label"
+              maxlength="50"
+              placeholder="Home, work, family…"
+            />
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-bold text-slate-800" for="address-recipient">Recipient name *</label>
+            <input
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="address-recipient"
+              type="text"
+              formControlName="recipientName"
+              autocomplete="name"
+              maxlength="200"
+            />
+            @if (form.controls.recipientName.touched && form.controls.recipientName.hasError('required')) {
+              <p class="mt-1 mb-0 text-xs font-semibold text-rose-700">Enter the recipient's name.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <label class="mb-2 block text-sm font-bold text-slate-800" for="address-line-1">Address line 1 *</label>
+          <input
+            class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+            id="address-line-1"
+            type="text"
+            formControlName="addressLine1"
+            autocomplete="address-line1"
+            maxlength="200"
+            placeholder="Street address and number"
+          />
+          @if (form.controls.addressLine1.touched && form.controls.addressLine1.hasError('required')) {
+            <p class="mt-1 mb-0 text-xs font-semibold text-rose-700">Enter the street address.</p>
+          }
+        </div>
+
+        <div>
+          <label class="mb-2 block text-sm font-bold text-slate-800" for="address-line-2">Address line 2</label>
+          <input
+            class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+            id="address-line-2"
+            type="text"
+            formControlName="addressLine2"
+            autocomplete="address-line2"
+            maxlength="200"
+            placeholder="Apartment, suite, unit…"
+          />
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-bold text-slate-800" for="address-city">City *</label>
+            <input
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="address-city"
+              type="text"
+              formControlName="city"
+              autocomplete="address-level2"
+              maxlength="100"
+            />
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-bold text-slate-800" for="address-region">State / region *</label>
+            <input
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="address-region"
+              type="text"
+              formControlName="region"
+              autocomplete="address-level1"
+              maxlength="100"
+            />
+          </div>
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-bold text-slate-800" for="address-postal-code">Postal code *</label>
+            <input
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-3 outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="address-postal-code"
+              type="text"
+              formControlName="postalCode"
+              autocomplete="postal-code"
+              maxlength="30"
+            />
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-bold text-slate-800" for="address-country-code">Country code *</label>
+            <input
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-3 uppercase outline-none transition focus:border-blue-700 focus:ring-3 focus:ring-blue-700/15"
+              id="address-country-code"
+              type="text"
+              formControlName="countryCode"
+              autocomplete="country"
+              minlength="2"
+              maxlength="2"
+              placeholder="US"
+              aria-describedby="address-country-hint"
+            />
+            <p class="mt-1 mb-0 text-xs text-slate-500" id="address-country-hint">Two-letter country code, such as US or BR.</p>
+            @if (form.controls.countryCode.touched && form.controls.countryCode.invalid) {
+              <p class="mt-1 mb-0 text-xs font-semibold text-rose-700">Enter a valid two-letter country code.</p>
+            }
+          </div>
+        </div>
+
+        @if (!editingAddressId()) {
+          <label class="flex cursor-pointer items-start gap-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-700">
+            <input class="mt-0.5 size-4 accent-blue-700" type="checkbox" formControlName="isDefault" />
+            <span><strong class="block text-slate-900">Make this my default address</strong><span class="block">Use it first for future deliveries.</span></span>
+          </label>
+        }
+
+        <div class="flex justify-end gap-3 border-t border-slate-100 pt-5">
+          <button class="rounded-xl px-5 py-3 font-bold text-slate-600 hover:bg-slate-100" type="button" [disabled]="saving()" (click)="cancelForm()">
+            Cancel
+          </button>
+          <button
+            class="rounded-xl bg-blue-700 px-5 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-55"
+            type="submit"
+            [disabled]="saving() || form.invalid"
+          >
+            {{ saving() ? 'Saving…' : editingAddressId() ? 'Save changes' : 'Add address' }}
+          </button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (loading()) {
+    <section class="mt-8 grid animate-pulse gap-5 sm:grid-cols-2" aria-label="Loading addresses" aria-busy="true">
+      <div class="h-64 rounded-2xl bg-slate-200"></div>
+      <div class="h-64 rounded-2xl bg-slate-200"></div>
+    </section>
+  } @else if (addressService.addresses().length === 0) {
+    <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+      <div class="mx-auto grid size-14 place-items-center rounded-full bg-blue-50 text-2xl text-blue-700" aria-hidden="true">⌖</div>
+      <h2 class="mt-5 text-xl font-bold text-slate-900">No saved addresses</h2>
+      <p class="mb-5 text-slate-500">Add an address to make future deliveries quicker.</p>
+      <button class="rounded-xl bg-blue-700 px-5 py-3 font-bold text-white hover:bg-blue-800" type="button" (click)="startAdd()">
+        Add your first address
+      </button>
+    </section>
+  } @else {
+    <section class="mt-8 grid items-stretch gap-5 sm:grid-cols-2" aria-label="Saved addresses">
+      @for (address of addressService.addresses(); track address.id) {
+        <article
+          class="flex min-h-72 flex-col rounded-2xl border bg-white p-6 shadow-sm"
+          [class.border-blue-300]="address.isDefault"
+          [class.border-slate-200]="!address.isDefault"
+        >
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="m-0 truncate text-lg font-extrabold text-slate-900">{{ address.label || 'Address' }}</h2>
+                @if (address.isDefault) {
+                  <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">Default</span>
+                }
+              </div>
+              <p class="mt-3 mb-0 font-bold text-slate-800">{{ address.recipientName }}</p>
+            </div>
+            <button
+              class="shrink-0 text-sm font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+              type="button"
+              [disabled]="isBusy()"
+              (click)="startEdit(address)"
+            >
+              Edit
+            </button>
+          </div>
+
+          <address class="mt-3 not-italic leading-7 text-slate-600">
+            <span class="block">{{ address.addressLine1 }}</span>
+            @if (address.addressLine2) {
+              <span class="block">{{ address.addressLine2 }}</span>
+            }
+            <span class="block">{{ address.city }}, {{ address.region }} {{ address.postalCode }}</span>
+            <span class="block uppercase">{{ address.countryCode }}</span>
+          </address>
+
+          <div class="mt-auto border-t border-slate-100 pt-5">
+            @if (pendingDeleteId() === address.id) {
+              <p class="mt-0 mb-3 text-sm font-semibold text-rose-800">Remove this saved address?</p>
+              <div class="flex flex-wrap gap-3">
+                <button
+                  class="rounded-lg bg-rose-700 px-4 py-2 text-sm font-bold text-white hover:bg-rose-800 disabled:opacity-55"
+                  type="button"
+                  [disabled]="changingAddressId() === address.id"
+                  (click)="remove(address)"
+                >
+                  {{ changingAddressId() === address.id ? 'Removing…' : 'Yes, remove' }}
+                </button>
+                <button class="px-2 py-2 text-sm font-bold text-slate-600 hover:underline" type="button" [disabled]="isBusy()" (click)="cancelRemove()">
+                  Cancel
+                </button>
+              </div>
+            } @else {
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <button
+                  class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-default disabled:border-blue-100 disabled:bg-blue-50 disabled:text-blue-700"
+                  type="button"
+                  [disabled]="address.isDefault || isBusy()"
+                  (click)="setDefault(address)"
+                >
+                  {{ changingAddressId() === address.id ? 'Updating…' : address.isDefault ? 'Default address' : 'Set as default' }}
+                </button>
+                <button
+                  class="px-2 py-2 text-sm font-bold text-rose-700 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  type="button"
+                  [disabled]="isBusy()"
+                  (click)="requestRemove(address)"
+                >
+                  Remove
+                </button>
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </section>
+  }
+</main>

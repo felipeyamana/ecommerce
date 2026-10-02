@@ -2,12 +2,14 @@ namespace ECommerce.Api.Products;
 
 public interface IProductsApiClient
 {
-    Task<PagedProductsResponse> GetProductsAsync(
-        int page,
-        int pageSize,
+    Task<DownstreamApiResult<PagedProductsResponse>> GetProductsAsync(
+        ProductCatalogQuery query,
         CancellationToken cancellationToken);
 
-    Task<ProductResponse?> GetProductAsync(
+    Task<DownstreamApiResult<ProductResponse>> GetProductAsync(
         long id,
+        CancellationToken cancellationToken);
+
+    Task<DownstreamApiResult<IReadOnlyList<CategoryResponse>>> GetCategoriesAsync(
         CancellationToken cancellationToken);
 }
