@@ -3,6 +3,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import { of } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartService } from '../../core/cart/cart.service';
+import { FavoritesService } from '../../core/favorites/favorites.service';
 import {
   Category,
   PagedProducts,
@@ -61,6 +62,7 @@ describe('HomePage', () => {
     await TestBed.configureTestingModule({
       imports: [HomePage],
       providers: [
+        { provide: FavoritesService, useValue: { error: () => '', isFavorite: () => false, pending: () => new Set(), toggle: vi.fn(() => of(undefined)) } },
         provideRouter([]),
         {
           provide: ActivatedRoute,
@@ -94,6 +96,23 @@ describe('HomePage', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Added to cart');
   });
 
+  it('saves the product when its heart is clicked', () => {
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[aria-label="Add Wireless headphones to favourites"]')!.click();
+    expect(TestBed.inject(FavoritesService).toggle).toHaveBeenCalledWith(42);
+  });
+
+  it('redirects signed-out customers to login when they click a heart', () => {
+    isAuthenticated.mockReturnValue(false);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[aria-label="Add Wireless headphones to favourites"]')!.click();
+    expect(TestBed.inject(FavoritesService).toggle).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/' } });
+  });
+
   it('redirects signed-out customers to login without changing the cart', () => {
     isAuthenticated.mockReturnValue(false);
     const router = TestBed.inject(Router);
@@ -118,6 +137,31 @@ describe('HomePage', () => {
     expect(text).toContain('& up');
   });
 
+  it('opens both filter groups in the drawer and restores scrolling on close', () => {
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const dialog = element.querySelector<HTMLDialogElement>('#catalog-filter-drawer')!;
+    const showModal = vi.fn();
+    const close = vi.fn();
+    Object.defineProperty(dialog, 'showModal', { value: showModal });
+    Object.defineProperty(dialog, 'close', { value: close });
+    const originalOverflow = document.body.style.overflow;
+    element.querySelector<HTMLButtonElement>('[aria-controls="catalog-filter-drawer"]')!.click();
+    fixture.detectChanges();
+    expect(showModal).toHaveBeenCalledOnce();
+    expect(document.body.style.overflow).toBe('hidden');
+    expect(dialog.querySelector('[aria-label="Product categories"]')).not.toBeNull();
+    expect(dialog.querySelector('[aria-label="Product filters"]')).not.toBeNull();
+    expect(element.querySelectorAll('#filter-min-price')).toHaveLength(1);
+    dialog.querySelector<HTMLButtonElement>('[aria-label="Close filters"]')!.click();
+    fixture.detectChanges();
+    expect(close).toHaveBeenCalledOnce();
+    expect(document.body.style.overflow).toBe(originalOverflow);
+    expect(fixture.componentInstance.filterDrawerOpen()).toBe(false);
+    fixture.destroy();
+  });
+
   it('writes brand filters to the URL and resets pagination', () => {
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -131,6 +175,74 @@ describe('HomePage', () => {
       queryParams: { brands: ['Acme'], page: null },
       queryParamsHandling: 'merge',
     });
+  });
+
+  it('debounces price edits and applies them immediately on blur without a duplicate request', () => {
+    vi.useFakeTimers();
+    try {
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const fixture = TestBed.createComponent(HomePage);
+      fixture.detectChanges();
+      const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#filter-min-price')!;
+      input.value = '10';
+      input.dispatchEvent(new Event('input'));
+      vi.advanceTimersByTime(400);
+      expect(navigate).not.toHaveBeenCalled();
+      input.value = '20';
+      input.dispatchEvent(new Event('input'));
+      vi.advanceTimersByTime(599);
+      expect(navigate).not.toHaveBeenCalled();
+      input.dispatchEvent(new Event('blur'));
+      expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { minPrice: 20, maxPrice: null, page: null } }));
+      vi.advanceTimersByTime(1000);
+      expect(navigate).toHaveBeenCalledTimes(1);
+      fixture.destroy();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('waits 400 ms after release and cancels when the slider is picked up again', () => {
+    vi.useFakeTimers();
+    try {
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const fixture = TestBed.createComponent(HomePage);
+      fixture.detectChanges();
+      const slider = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('[aria-label="Minimum price slider"]')!;
+      slider.value = '20';
+      slider.dispatchEvent(new Event('input'));
+      vi.advanceTimersByTime(2000);
+      expect(fixture.componentInstance.minPriceDraft()).toBe('20');
+      expect(navigate).not.toHaveBeenCalled();
+      slider.dispatchEvent(new Event('change'));
+      vi.advanceTimersByTime(399);
+      expect(navigate).not.toHaveBeenCalled();
+      slider.dispatchEvent(new Event('pointerdown'));
+      vi.advanceTimersByTime(1000);
+      expect(navigate).not.toHaveBeenCalled();
+      slider.value = '25';
+      slider.dispatchEvent(new Event('input'));
+      slider.dispatchEvent(new Event('change'));
+      vi.advanceTimersByTime(399);
+      expect(navigate).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { minPrice: 25, maxPrice: null, page: null } }));
+      expect(navigate).toHaveBeenCalledTimes(1);
+      fixture.destroy();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('changes sorting through the URL and switches the listing to list view', () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const select = element.querySelector<HTMLSelectElement>('#catalog-sort')!;
+    select.value = 'price-asc';
+    select.dispatchEvent(new Event('change'));
+    expect(navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: { sort: 'price-asc', page: null } }));
+    element.querySelector<HTMLButtonElement>('[aria-label="List view"]')!.click();
+    fixture.detectChanges();
+    expect(element.querySelector('[aria-label="Product listing"]')?.classList.contains('list-view')).toBe(true);
+    expect(element.querySelector('[aria-label="List view"]')?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('keeps a selected brand visible when the current category has no matching products', () => {

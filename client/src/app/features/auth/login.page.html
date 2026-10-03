@@ -86,8 +86,43 @@
           type="password"
           formControlName="password"
           autocomplete="new-password"
+          [attr.aria-invalid]="registerForm.controls.password.touched && registerForm.controls.password.invalid"
+          [attr.aria-describedby]="
+            registerForm.controls.password.touched && registerForm.controls.password.invalid
+              ? 'password-requirements password-validation-error'
+              : 'password-requirements'
+          "
         />
-        <small class="text-slate-500">Use at least 8 characters.</small>
+        <div
+          id="password-requirements"
+          class="mt-1 rounded-xl bg-slate-50 px-3.5 py-3"
+          aria-live="polite"
+        >
+          <p class="m-0 text-sm font-semibold text-slate-700">Your password must include:</p>
+          <ul class="mt-2 mb-0 grid list-none gap-1 p-0 text-sm">
+            @for (requirement of passwordRequirements; track requirement.label) {
+              <li
+                class="flex items-center gap-2 transition-colors"
+                [class.text-emerald-700]="passwordMeetsRequirement(requirement)"
+                [class.text-rose-700]="!passwordMeetsRequirement(requirement)"
+                [attr.data-password-requirement]="requirement.label"
+              >
+                <span class="w-4 text-center font-bold" aria-hidden="true">
+                  {{ passwordMeetsRequirement(requirement) ? '✓' : '○' }}
+                </span>
+                <span>{{ requirement.label }}</span>
+                <span class="sr-only">
+                  {{ passwordMeetsRequirement(requirement) ? '— requirement met' : '— requirement not met' }}
+                </span>
+              </li>
+            }
+          </ul>
+        </div>
+        @if (registerForm.controls.password.touched && registerForm.controls.password.invalid) {
+          <small id="password-validation-error" class="text-rose-700">
+            Please meet all password requirements.
+          </small>
+        }
 
         <label class="mt-2 text-sm font-bold text-slate-800" for="confirm-password">Confirm password</label>
         <input

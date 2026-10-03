@@ -5,6 +5,7 @@ import { of } from 'rxjs';
 import { App } from './app';
 import { AuthService, CurrentUser } from './core/auth/auth.service';
 import { CartService } from './core/cart/cart.service';
+import { FavoritesService } from './core/favorites/favorites.service';
 import { ProductsService } from './core/products/products.service';
 
 describe('App', () => {
@@ -20,6 +21,7 @@ describe('App', () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        { provide: FavoritesService, useValue: { load: () => of([]), reset: vi.fn() } },
         provideRouter([]),
         {
           provide: AuthService,

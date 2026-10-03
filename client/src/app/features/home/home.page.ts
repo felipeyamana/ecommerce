@@ -1,18 +1,23 @@
-import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe, DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
+  ElementRef,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { ActivatedRoute, ParamMap, Params, Router, RouterLink } from '@angular/router';
 import { distinctUntilChanged, finalize, map } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartService } from '../../core/cart/cart.service';
+import { productImage } from '../../core/products/product-image';
+import { FavoriteButton } from '../../core/favorites/favorite-button';
+import { FavoritesService } from '../../core/favorites/favorites.service';
 import {
   Category,
   PagedProducts,
@@ -23,33 +28,72 @@ import {
 
 @Component({
   selector: 'app-home-page',
-  imports: [CurrencyPipe, DecimalPipe, RouterLink],
+  imports: [CurrencyPipe, DecimalPipe, RouterLink, NgTemplateOutlet, FavoriteButton],
   templateUrl: './home.page.html',
+  styleUrl: './home.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomePage {
-  private static readonly categoryImages: Record<number, string> = {
-    1: 'electronics.png',
-    2: 'other-electronics.png',
-    3: 'mobile-phones.png',
-    4: 'wearables.png',
-    5: 'power-charging.png',
-    6: 'computer-accessories.png',
-    7: 'audio.png',
-    8: 'laptops.png',
-    9: 'tablets.png',
-    10: 'tv-home-theater.png',
-    11: 'cameras.png',
-  };
-
   private readonly productsService = inject(ProductsService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly cart = inject(CartService);
   private readonly destroyRef = inject(DestroyRef);
+  private priceTimer?: ReturnType<typeof setTimeout>;
+  private requestVersion = 0;
+  private readonly document = inject(DOCUMENT);
+  private readonly filterDialog = viewChild.required<ElementRef<HTMLDialogElement>>('filterDialog');
+  private previousBodyOverflow = '';
+  readonly filterDrawerOpen = signal(false);
+
+  openFilterDrawer(): void {
+    this.previousBodyOverflow = this.document.body.style.overflow;
+    this.document.body.style.overflow = 'hidden';
+    this.filterDrawerOpen.set(true);
+    this.filterDialog().nativeElement.showModal();
+  }
+
+  closeFilterDrawer(): void {
+    this.filterDialog().nativeElement.close();
+    this.onFilterDrawerClosed();
+  }
+
+  onFilterDrawerClosed(): void {
+    if (!this.filterDrawerOpen()) return;
+    this.document.body.style.overflow = this.previousBodyOverflow;
+    this.filterDrawerOpen.set(false);
+  }
+
+  showFilteredResults(): void {
+    this.applyPriceFilters();
+    if (!this.filterError()) this.closeFilterDrawer();
+  }
+  readonly viewStyle = signal<'grid' | 'list'>('grid');
+  readonly sortOptions = [
+    { value: 'name-asc', label: 'Name: A to Z' },
+    { value: 'name-desc', label: 'Name: Z to A' },
+    { value: 'price-asc', label: 'Price: low to high' },
+    { value: 'price-desc', label: 'Price: high to low' },
+    { value: 'rating-desc', label: 'Top rated' },
+    { value: 'newest', label: 'Newest arrivals' },
+  ];
+  readonly selectedCategory = computed(() => this.categories().find(
+    category => category.id === (this.catalogQuery().subCategoryId ?? this.catalogQuery().categoryId),
+  ));
+  readonly selectedParent = computed(() => this.categories().find(
+    category => category.id === this.selectedCategory()?.parentCategoryId,
+  ));
+  readonly sliderMaximum = computed(() => Math.max(1,
+    this.products()?.facets.maxPrice ?? 2000,
+    this.catalogQuery().maxPrice ?? 0,
+    this.catalogQuery().minPrice ?? 0,
+  ));
+  readonly sliderMin = computed(() => Math.min(this.sliderMaximum(), Math.max(0, Number(this.minPriceDraft()) || 0)));
+  readonly sliderMax = computed(() => this.maxPriceDraft() === '' ? this.sliderMaximum() : Math.min(this.sliderMaximum(), Math.max(0, Number(this.maxPriceDraft()) || 0)));
 
   readonly products = signal<PagedProducts | null>(null);
+  readonly favorites = inject(FavoritesService);
   readonly loading = signal(true);
   readonly error = signal('');
   readonly searchTerm = signal('');
@@ -127,6 +171,8 @@ export class HomePage {
   });
 
   constructor() {
+    this.destroyRef.onDestroy(() => clearTimeout(this.priceTimer));
+    this.destroyRef.onDestroy(() => this.onFilterDrawerClosed());
     this.route.queryParamMap
       .pipe(
         map((params) => this.parseCatalogQuery(params)),
@@ -136,6 +182,7 @@ export class HomePage {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((query) => {
+        clearTimeout(this.priceTimer);
         this.catalogQuery.set(query);
         this.searchTerm.set(query.search ?? '');
         this.minPriceDraft.set(query.minPrice?.toString() ?? '');
@@ -146,9 +193,7 @@ export class HomePage {
   }
 
   categoryImage(subCategoryId: number | null): string {
-    const image =
-      (subCategoryId && HomePage.categoryImages[subCategoryId]) ?? HomePage.categoryImages[1];
-    return `/category-placeholders/${image}`;
+    return productImage(subCategoryId);
   }
 
   loadPage(page: number): void {
@@ -219,9 +264,45 @@ export class HomePage {
   updatePriceDraft(kind: 'min' | 'max', event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     (kind === 'min' ? this.minPriceDraft : this.maxPriceDraft).set(value);
+    clearTimeout(this.priceTimer);
+    this.priceTimer = setTimeout(() => this.applyPriceFilters(), 600);
+  }
+
+  updatePriceSlider(kind: 'min' | 'max', event: Event): void {
+    const value = Number((event.target as HTMLInputElement).value);
+    const constrained = kind === 'min' ? Math.min(value, this.sliderMax()) : Math.max(value, this.sliderMin());
+    (kind === 'min' ? this.minPriceDraft : this.maxPriceDraft).set(constrained.toString());
+    clearTimeout(this.priceTimer);
+  }
+
+  beginPriceSliderInteraction(): void {
+    clearTimeout(this.priceTimer);
+  }
+
+  finishPriceSliderInteraction(): void {
+    clearTimeout(this.priceTimer);
+    this.priceTimer = setTimeout(() => this.applyPriceFilters(), 400);
+  }
+
+  selectSort(event: Event): void {
+    this.updateFilters({ sort: (event.target as HTMLSelectElement).value });
+  }
+
+  categoryIcon(category: Category): string {
+    const name = category.name.toLowerCase();
+    if (/audio|headphone/.test(name)) return 'M5 14v-3a7 7 0 0 1 14 0v3 M5 12H3v7h4v-7H5 M19 12h2v7h-4v-7h2';
+    if (/laptop|computer/.test(name)) return 'M5 4h14v12H5z M2 20h20l-3-4H5z';
+    if (/phone|tablet|mobile/.test(name)) return 'M7 2h10v20H7z M10 18h4';
+    if (/wear|watch/.test(name)) return 'M8 6V2h8v4 M8 18v4h8v-4 M6 6h12v12H6z';
+    if (/power|charg/.test(name)) return 'M13 2 4 14h7l-1 8 10-13h-7z';
+    if (/camera|photo/.test(name)) return 'M3 7h5l2-3h4l2 3h5v13H3z M16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0';
+    if (/gaming/.test(name)) return 'M7 7h10l4 12h-4l-3-3h-4l-3 3H3z M6 11h5 M8.5 8.5v5 M16 11h.01 M18 13h.01';
+    if (/storage|memory/.test(name)) return 'M5 3h14v18H5z M8 6h8 M8 17h.01 M12 17h4';
+    return 'M3 4h18v13H3z M8 21h8 M12 17v4';
   }
 
   applyPriceFilters(): void {
+    clearTimeout(this.priceTimer);
     const minPrice = this.parsePrice(this.minPriceDraft());
     const maxPrice = this.parsePrice(this.maxPriceDraft());
     if (minPrice === null || maxPrice === null) {
@@ -234,10 +315,12 @@ export class HomePage {
     }
 
     this.filterError.set('');
+    if (minPrice === this.catalogQuery().minPrice && maxPrice === this.catalogQuery().maxPrice) return;
     this.updateFilters({ minPrice: minPrice ?? null, maxPrice: maxPrice ?? null });
   }
 
   clearFilters(): void {
+    clearTimeout(this.priceTimer);
     this.filterError.set('');
     this.brandSearch.set('');
     this.showAllBrands.set(false);
@@ -252,15 +335,16 @@ export class HomePage {
   }
 
   private loadProducts(query: ProductCatalogQuery): void {
+    const version = ++this.requestVersion;
     this.loading.set(true);
     this.error.set('');
 
     this.productsService
       .getProducts(query)
-      .pipe(finalize(() => this.loading.set(false)))
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => { if (version === this.requestVersion) this.loading.set(false); }))
       .subscribe({
-        next: (products) => this.products.set(products),
-        error: () => this.error.set('We could not load the products. Please try again.'),
+        next: (products) => { if (version === this.requestVersion) this.products.set(products); },
+        error: () => { if (version === this.requestVersion) this.error.set('We could not load the products. Please try again.'); },
       });
   }
 

@@ -5,15 +5,18 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartService } from '../../core/cart/cart.service';
+import { FavoriteButton } from '../../core/favorites/favorite-button';
+import { FavoritesService } from '../../core/favorites/favorites.service';
 import { Product, ProductsService } from '../../core/products/products.service';
 
 @Component({
   selector: 'app-product-detail-page',
-  imports: [CurrencyPipe, DecimalPipe, RouterLink],
+  imports: [CurrencyPipe, DecimalPipe, RouterLink, FavoriteButton],
   templateUrl: './product-detail.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductDetailPage {
+  readonly favorites = inject(FavoritesService);
   private static readonly categoryImages: Record<number, string> = {
     1: 'electronics.png',
     2: 'other-electronics.png',

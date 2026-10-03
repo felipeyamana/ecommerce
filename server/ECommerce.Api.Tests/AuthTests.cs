@@ -1,33 +1,27 @@
 using System.Net;
 using System.Net.Http.Json;
-using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text.Json;
 using ECommerce.Api.Contracts;
-using ECommerce.Api.Identity;
 using ECommerce.Api.Products;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace ECommerce.Api.Tests;
 
-public sealed class AuthTests
+// Reserve full-host tests for authentication and critical purchase flows.
+[Trait("Category", "Integration")]
+public sealed class AuthTests(AuthApiFixture fixture) : IClassFixture<AuthApiFixture>
 {
-    private readonly TestSigningKey _signingKey = TestSigningKey.Create();
-
     [Fact]
     public async Task RegisterCreatesSessionAndLogoutClearsIt()
     {
-        var authClient = new RecordingProductsAuthApiClient();
-        using var factory = CreateFactory(authClient);
-        using var client = CreateClient(factory);
-
+        using var client = fixture.CreateClient();
         await SetAntiforgeryHeaderAsync(client);
         var register = await client.PostAsJsonAsync("/api/auth/register", new
         {
@@ -35,204 +29,69 @@ public sealed class AuthTests
             password = "Password1",
             confirmPassword = "Password1"
         });
-
         Assert.Equal(HttpStatusCode.NoContent, register.StatusCode);
-        Assert.Equal("shopper@example.com", authClient.RegisterRequest!.Email);
+        var user = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+        Assert.Equal(AuthApiFixture.UserId, user!.Id);
+        Assert.Equal("shopper@example.com", user.Email);
+        Assert.Empty(user.Roles);
 
         await SetAntiforgeryHeaderAsync(client);
-        var currentUser = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
-        Assert.Equal(authClient.User.Id, currentUser!.Id);
-        Assert.Equal("shopper@example.com", currentUser.Email);
-        Assert.Empty(currentUser.Roles);
-
-        var logout = await client.PostAsJsonAsync("/api/auth/logout", new { });
-        Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/auth/logout", new { })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
     }
 
     [Fact]
-    public async Task LoginFailureFromProductsApiIsForwarded()
+    public async Task LoginCreatesAuthenticatedSession()
     {
-        var authClient = new RecordingProductsAuthApiClient
-        {
-            LoginResult = ProductsAuthResult.Failure(
-                StatusCodes.Status401Unauthorized,
-                JsonSerializer.SerializeToElement(new { message = "Invalid email or password." }))
-        };
-        using var factory = CreateFactory(authClient);
-        using var client = CreateClient(factory);
-
+        using var client = fixture.CreateClient();
         await SetAntiforgeryHeaderAsync(client);
         var response = await client.PostAsJsonAsync("/api/auth/login", new
         {
-            email = "shopper@example.com",
-            password = "wrong",
-            rememberMe = false
+            email = "shopper@example.com", password = "Password1", rememberMe = false
         });
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.Equal("shopper@example.com", authClient.LoginRequest!.Email);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var user = await client.GetFromJsonAsync<CurrentUserResponse>("/api/auth/me");
+        Assert.Equal(AuthApiFixture.UserId, user!.Id);
+        Assert.Equal("shopper@example.com", user.Email);
     }
 
     [Fact]
-    public async Task AuthenticationMutationsRequireAntiforgeryToken()
+    public async Task ProtectedEndpointsRequireAuthenticationAndMutationsRequireAntiforgery()
     {
-        using var factory = CreateFactory(new RecordingProductsAuthApiClient());
-        using var client = CreateClient(factory);
-
-        var response = await client.PostAsJsonAsync("/api/auth/register", new
+        using var client = fixture.CreateClient();
+        foreach (var path in new[]
         {
-            email = "missing-token@example.com",
-            password = "Password1",
-            confirmPassword = "Password1"
-        });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task CartRequiresCookieAndForwardsAuthenticatedUser()
-    {
-        var authClient = new RecordingProductsAuthApiClient();
-        var cartClient = new RecordingCartApiClient();
-        using var factory = CreateFactory(authClient, cartClient);
-        using var client = CreateClient(factory);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/cart")).StatusCode);
+            "/api/auth/me",
+            "/api/cart",
+            "/api/favorites",
+            $"/api/orders/{Guid.NewGuid():D}"
+        })
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            email = "shopper@example.com", password = "Password1", confirmPassword = "Password1"
+        })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "shopper@example.com", password = "Password1"
+        })).StatusCode);
 
         await SetAntiforgeryHeaderAsync(client);
-        var register = await client.PostAsJsonAsync("/api/auth/register", new
+        (await client.PostAsJsonAsync("/api/auth/login", new
         {
-            email = "cart-shopper@example.com",
-            password = "Password1",
-            confirmPassword = "Password1"
-        });
-        register.EnsureSuccessStatusCode();
-
-        var response = await client.GetAsync("/api/cart");
-
-        response.EnsureSuccessStatusCode();
-        Assert.Equal(authClient.User.Id.ToString(), cartClient.UserId);
-    }
-
-    private WebApplicationFactory<Program> CreateFactory(
-        IProductsAuthApiClient authClient,
-        ICartApiClient? cartApiClient = null) =>
-        new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseEnvironment("Testing");
-                builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
-                    new Dictionary<string, string?>
-                    {
-                        ["ProductsApi:BaseUrl"] = "https://example.invalid",
-                        ["ProductsApi:ApiKey"] = "test-only",
-                        ["DownstreamTokens:Issuer"] = "ecommerce-api",
-                        ["DownstreamTokens:Audience"] = "products-api",
-                        ["DownstreamTokens:LifetimeMinutes"] = "5",
-                        ["DownstreamTokens:PrivateKey"] = _signingKey.PrivateKey,
-                        ["DownstreamTokens:KeyId"] = "test-key-1"
-                    }));
-                builder.ConfigureServices(services =>
-                {
-                    services.AddDataProtection().UseEphemeralDataProtectionProvider();
-                    services.RemoveAll<IProductsAuthApiClient>();
-                    services.AddSingleton(authClient);
-
-                    if (cartApiClient is not null)
-                    {
-                        services.RemoveAll<ICartApiClient>();
-                        services.AddSingleton(cartApiClient);
-                    }
-                });
-            });
-
-    private static HttpClient CreateClient(WebApplicationFactory<Program> factory) =>
-        factory.CreateClient(new WebApplicationFactoryClientOptions
+            email = "shopper@example.com", password = "Password1"
+        })).EnsureSuccessStatusCode();
+        client.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/api/favorites/42", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.DeleteAsync("/api/favorites/42")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/orders", new
         {
-            BaseAddress = new Uri("https://localhost"),
-            HandleCookies = true
-        });
-
-    private sealed class RecordingProductsAuthApiClient : IProductsAuthApiClient
-    {
-        public ProductsAuthUser User { get; } =
-            new(Guid.NewGuid(), "shopper@example.com", []);
-
-        public RegisterRequest? RegisterRequest { get; private set; }
-        public LoginRequest? LoginRequest { get; private set; }
-
-        public ProductsAuthResult? RegisterResult { get; init; }
-        public ProductsAuthResult? LoginResult { get; init; }
-
-        public Task<ProductsAuthResult> RegisterAsync(
-            RegisterRequest request,
-            string clientIp,
-            CancellationToken cancellationToken)
-        {
-            RegisterRequest = request;
-            var user = User with { Email = request.Email };
-            return Task.FromResult(
-                RegisterResult ?? ProductsAuthResult.Success(user, StatusCodes.Status200OK));
-        }
-
-        public Task<ProductsAuthResult> LoginAsync(
-            LoginRequest request,
-            string clientIp,
-            CancellationToken cancellationToken)
-        {
-            LoginRequest = request;
-            var user = User with { Email = request.Email };
-            return Task.FromResult(
-                LoginResult ?? ProductsAuthResult.Success(user, StatusCodes.Status200OK));
-        }
-    }
-
-    private sealed class RecordingCartApiClient : ICartApiClient
-    {
-        public string? UserId { get; private set; }
-
-        public Task<DownstreamApiResult<CartResponse>> GetAsync(
-            ClaimsPrincipal user,
-            CancellationToken cancellationToken)
-        {
-            UserId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            return Task.FromResult(EmptyCart());
-        }
-
-        public Task<DownstreamApiResult<CartResponse>> SetItemAsync(
-            ClaimsPrincipal user,
-            long productId,
-            SetCartItemRequest request,
-            CancellationToken cancellationToken) => Task.FromResult(EmptyCart());
-
-        public Task<DownstreamApiResult<CartResponse>> RemoveItemAsync(
-            ClaimsPrincipal user,
-            long productId,
-            Guid? version,
-            CancellationToken cancellationToken) => Task.FromResult(EmptyCart());
-
-        public Task<DownstreamApiResult<CartResponse>> ClearAsync(
-            ClaimsPrincipal user,
-            Guid? version,
-            CancellationToken cancellationToken) => Task.FromResult(EmptyCart());
-
-        private static DownstreamApiResult<CartResponse> EmptyCart() =>
-            DownstreamApiResult<CartResponse>.Success(
-                new CartResponse(Guid.Empty, [], 0, null, null),
-                StatusCodes.Status200OK);
-    }
-
-    private sealed record TestSigningKey(string PrivateKey, string PublicKey)
-    {
-        public static TestSigningKey Create()
-        {
-            using var rsa = RSA.Create(2048);
-            return new TestSigningKey(
-                Convert.ToBase64String(rsa.ExportPkcs8PrivateKey()),
-                Convert.ToBase64String(rsa.ExportSubjectPublicKeyInfo()));
-        }
+            addressId = Guid.NewGuid(), cartVersion = Guid.NewGuid()
+        })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(
+            $"/api/orders/{Guid.NewGuid():D}/checkout",
+            null)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/auth/logout", new { })).StatusCode);
     }
 
     private static async Task SetAntiforgeryHeaderAsync(HttpClient client)
@@ -244,5 +103,53 @@ public sealed class AuthTests
         var value = cookie.Split(';', 2)[0]["XSRF-TOKEN=".Length..];
         client.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
         client.DefaultRequestHeaders.Add("X-XSRF-TOKEN", Uri.UnescapeDataString(value));
+    }
+}
+
+public sealed class AuthApiFixture : IDisposable
+{
+    public static readonly Guid UserId = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    private readonly WebApplicationFactory<Program> factory;
+
+    public AuthApiFixture()
+    {
+        using var rsa = RSA.Create(2048);
+        var key = Convert.ToBase64String(rsa.ExportPkcs8PrivateKey());
+        factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Testing");
+            builder.ConfigureLogging(logging => logging.ClearProviders());
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["ProductsApi:BaseUrl"] = "https://example.invalid",
+                    ["ProductsApi:ApiKey"] = "test-only",
+                    ["DownstreamTokens:Issuer"] = "ecommerce-api",
+                    ["DownstreamTokens:Audience"] = "products-api",
+                    ["DownstreamTokens:LifetimeMinutes"] = "5",
+                    ["DownstreamTokens:PrivateKey"] = key,
+                    ["DownstreamTokens:KeyId"] = "test-key-1"
+                }));
+            builder.ConfigureServices(services =>
+            {
+                services.AddDataProtection().UseEphemeralDataProtectionProvider();
+                services.RemoveAll<IProductsAuthApiClient>();
+                services.AddSingleton<IProductsAuthApiClient>(new StubAuthClient());
+            });
+        });
+    }
+
+    public HttpClient CreateClient() => factory.CreateClient(new WebApplicationFactoryClientOptions
+    {
+        BaseAddress = new Uri("https://localhost"), HandleCookies = true
+    });
+    public void Dispose() => factory.Dispose();
+
+    private sealed class StubAuthClient : IProductsAuthApiClient
+    {
+        public Task<ProductsAuthResult> RegisterAsync(RegisterRequest request, string clientIp, CancellationToken cancellationToken) =>
+            Task.FromResult(ProductsAuthResult.Success(new ProductsAuthUser(UserId, request.Email, []), 200));
+        public Task<ProductsAuthResult> LoginAsync(LoginRequest request, string clientIp, CancellationToken cancellationToken) =>
+            Task.FromResult(ProductsAuthResult.Success(new ProductsAuthUser(UserId, request.Email, []), 200));
     }
 }

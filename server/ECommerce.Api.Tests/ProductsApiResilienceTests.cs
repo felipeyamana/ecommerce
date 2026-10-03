@@ -1,6 +1,7 @@
 using System.Net;
 using ECommerce.Api.Products;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using Polly.CircuitBreaker;
 using Xunit;
 
@@ -76,6 +77,12 @@ public sealed class ProductsApiResilienceTests
                 client.BaseAddress = new Uri("https://products.example"))
             .ConfigurePrimaryHttpMessageHandler(() => handler)
             .AddProductsApiResilience();
+        // Exercise the production policy without waiting through real retry backoff.
+        services.PostConfigureAll<HttpStandardResilienceOptions>(options =>
+        {
+            options.Retry.Delay = TimeSpan.Zero;
+            options.Retry.UseJitter = false;
+        });
         return services.BuildServiceProvider();
     }
 
