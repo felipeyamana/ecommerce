@@ -3,6 +3,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import { of } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartService } from '../../core/cart/cart.service';
+import { FavoritesService } from '../../core/favorites/favorites.service';
 import {
   Category,
   PagedProducts,
@@ -61,6 +62,7 @@ describe('HomePage', () => {
     await TestBed.configureTestingModule({
       imports: [HomePage],
       providers: [
+        { provide: FavoritesService, useValue: { error: () => '', isFavorite: () => false, pending: () => new Set(), toggle: vi.fn(() => of(undefined)) } },
         provideRouter([]),
         {
           provide: ActivatedRoute,
@@ -92,6 +94,23 @@ describe('HomePage', () => {
     expect(add).toHaveBeenCalledWith(product.id);
     expect(fixture.componentInstance.addedProductId()).toBe(product.id);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Added to cart');
+  });
+
+  it('saves the product when its heart is clicked', () => {
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[aria-label="Add Wireless headphones to favourites"]')!.click();
+    expect(TestBed.inject(FavoritesService).toggle).toHaveBeenCalledWith(42);
+  });
+
+  it('redirects signed-out customers to login when they click a heart', () => {
+    isAuthenticated.mockReturnValue(false);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const fixture = TestBed.createComponent(HomePage);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[aria-label="Add Wireless headphones to favourites"]')!.click();
+    expect(TestBed.inject(FavoritesService).toggle).not.toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { returnUrl: '/' } });
   });
 
   it('redirects signed-out customers to login without changing the cart', () => {

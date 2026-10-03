@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
+  { path: 'favourites', canActivate: [authGuard], loadComponent: () => import('./features/favorites/favorites.page').then(c => c.FavoritesPage) },
   { path: '', loadComponent: () => import('./features/home/home.page').then((c) => c.HomePage) },
   {
     path: 'cart',

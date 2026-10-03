@@ -16,6 +16,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../core/auth/auth.service';
 import { CartService } from '../../core/cart/cart.service';
 import { productImage } from '../../core/products/product-image';
+import { FavoriteButton } from '../../core/favorites/favorite-button';
+import { FavoritesService } from '../../core/favorites/favorites.service';
 import {
   Category,
   PagedProducts,
@@ -26,7 +28,7 @@ import {
 
 @Component({
   selector: 'app-home-page',
-  imports: [CurrencyPipe, DecimalPipe, RouterLink, NgTemplateOutlet],
+  imports: [CurrencyPipe, DecimalPipe, RouterLink, NgTemplateOutlet, FavoriteButton],
   templateUrl: './home.page.html',
   styleUrl: './home.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -91,6 +93,7 @@ export class HomePage {
   readonly sliderMax = computed(() => this.maxPriceDraft() === '' ? this.sliderMaximum() : Math.min(this.sliderMaximum(), Math.max(0, Number(this.maxPriceDraft()) || 0)));
 
   readonly products = signal<PagedProducts | null>(null);
+  readonly favorites = inject(FavoritesService);
   readonly loading = signal(true);
   readonly error = signal('');
   readonly searchTerm = signal('');

@@ -162,6 +162,7 @@
           </button>
         </div>
       } @else if (products()?.items?.length) {
+        @if (favorites.error()) { <p class="mb-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-800" role="alert">{{ favorites.error() }}</p> }
         @if (cartError()) {
           <p class="mb-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-800" role="alert">
             {{ cartError() }}
@@ -231,8 +232,9 @@
                 }
               </div>
 
+              <div class="product-actions mt-5 flex items-center gap-2">
               <button
-                class="mt-5 w-full rounded-xl bg-blue-700 px-5 py-3 font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+                class="min-h-11 min-w-0 flex-1 rounded-xl bg-blue-700 px-3 py-3 text-sm font-bold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                 type="button"
                 [disabled]="
                   !product.isActive || product.currentPrice === null || addingProductId() !== null
@@ -249,6 +251,8 @@
                   Add to cart
                 }
               </button>
+              <app-favorite-button [productId]="product.id" [productName]="product.name" />
+              </div>
             </article>
           }
         </div>

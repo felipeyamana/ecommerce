@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, finalize } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from './core/auth/auth.service';
 import { CartService } from './core/cart/cart.service';
+import { FavoritesService } from './core/favorites/favorites.service';
 import { Category, ProductsService } from './core/products/products.service';
 
 @Component({
@@ -16,6 +17,7 @@ import { Category, ProductsService } from './core/products/products.service';
 export class App {
   readonly auth = inject(AuthService);
   readonly cart = inject(CartService);
+  readonly favorites = inject(FavoritesService);
   private readonly productsService = inject(ProductsService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -55,11 +57,13 @@ export class App {
     effect((onCleanup) => {
       if (!this.auth.currentUser()) {
         this.cart.reset();
+        this.favorites.reset();
         return;
       }
 
-      const subscription = this.cart.load().subscribe({ error: () => undefined });
-      onCleanup(() => subscription.unsubscribe());
+      const subscription = untracked(() => this.cart.load().subscribe({ error: () => undefined }));
+      const favoritesSubscription = untracked(() => this.favorites.load().subscribe({ error: () => undefined }));
+      onCleanup(() => { subscription.unsubscribe(); favoritesSubscription.unsubscribe(); this.favorites.reset(); });
     });
     this.syncSearchQuery();
     this.router.events

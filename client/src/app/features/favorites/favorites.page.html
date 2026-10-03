@@ -1,0 +1,31 @@
+<main class="mx-auto w-[min(calc(100%-2rem),75rem)] py-8 sm:py-12">
+  <nav class="mb-4 flex gap-2 text-sm text-slate-500" aria-label="Breadcrumb"><a routerLink="/" class="no-underline hover:text-blue-700">Home</a><span aria-hidden="true">›</span><span aria-current="page">Favourites</span></nav>
+  <header class="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div><p class="m-0 text-sm font-bold text-blue-700">Saved for later</p><h1 class="my-1 text-3xl font-extrabold text-slate-900">Your favourites</h1><p class="mt-2 mb-0 text-slate-500">Keep the products you love in one place.</p></div>
+    <a routerLink="/" class="text-sm font-bold text-blue-700 no-underline hover:underline">Continue shopping</a>
+  </header>
+  @if (favorites.error()) {
+    <div class="mb-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-800" role="alert"><p class="m-0">{{ favorites.error() }}</p><button class="mt-2 font-bold underline" type="button" (click)="load(true)">Try again</button></div>
+  }
+  @if (favorites.loading()) {
+    <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading favourites" aria-busy="true">@for (item of [1, 2, 3]; track item) { <div class="h-80 animate-pulse rounded-2xl bg-slate-200"></div> }</section>
+  } @else if (favorites.items().length) {
+    <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Favourite products">
+      @for (favorite of favorites.items(); track favorite.product.id) {
+        <article class="flex min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <a [routerLink]="['/products', favorite.product.id]" [attr.aria-label]="'View ' + favorite.product.name"><img class="aspect-[16/10] w-full object-cover" [src]="productImage(favorite.product.subCategoryId)" [alt]="favorite.product.name" width="400" height="250" loading="lazy" /></a>
+          <div class="flex flex-1 flex-col p-5">
+            <p class="mt-0 mb-2 text-xs font-bold text-blue-700">{{ favorite.product.subCategoryName || favorite.product.categoryName }}</p>
+            <h2 class="m-0 text-lg font-bold"><a class="text-slate-900 no-underline hover:text-blue-700" [routerLink]="['/products', favorite.product.id]">{{ favorite.product.name }}</a></h2>
+            <p class="mt-2 line-clamp-3 text-sm text-slate-500">{{ favorite.product.description }}</p>
+            @if (!favorite.product.isActive) { <p class="text-sm font-semibold text-rose-700">Currently unavailable</p> }
+            <p class="mt-auto mb-4 pt-3 text-xl font-bold text-slate-900">{{ favorite.product.currentPrice !== null ? (favorite.product.currentPrice | currency: favorite.product.priceCurrencyCode || 'USD') : 'Price unavailable' }}</p>
+            <button class="min-h-11 rounded-xl border border-rose-200 px-3 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-wait disabled:opacity-50" type="button" [disabled]="favorites.pending().has(favorite.product.id)" [attr.aria-label]="'Remove ' + favorite.product.name + ' from favourites'" (click)="remove(favorite.product.id)">{{ favorites.pending().has(favorite.product.id) ? 'Removing…' : 'Remove from favourites' }}</button>
+          </div>
+        </article>
+      }
+    </section>
+  } @else if (!favorites.error()) {
+    <section class="rounded-2xl border border-slate-200 bg-white p-10 text-center"><span class="text-4xl text-rose-400" aria-hidden="true">♡</span><h2 class="text-xl font-bold text-slate-900">No favourites yet</h2><p class="text-slate-500">Tap the heart beside a product to save it here.</p><a routerLink="/" class="mt-3 inline-block rounded-xl bg-blue-700 px-5 py-3 font-bold text-white no-underline hover:bg-blue-800">Browse products</a></section>
+  }
+</main>

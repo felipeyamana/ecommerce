@@ -107,14 +107,18 @@
           {{ item.isActive ? 'Available' : 'Currently unavailable' }}
         </p>
 
+        <div class="mt-5 flex items-center gap-2">
         <button
-          class="mt-5 w-full rounded-full bg-amber-400 px-5 py-3 font-bold text-slate-900 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
+          class="min-w-0 flex-1 rounded-full bg-amber-400 px-5 py-3 font-bold text-slate-900 transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
           type="button"
           [disabled]="!item.isActive || item.currentPrice === null || addingToCart()"
           (click)="addToCart()"
         >
           {{ addingToCart() ? 'Adding…' : addedToCart() ? 'Added to cart' : 'Add to cart' }}
         </button>
+        <app-favorite-button [productId]="item.id" [productName]="item.name" />
+        </div>
+        @if (favorites.error()) { <p class="mb-0 text-sm font-semibold text-rose-700" role="alert">{{ favorites.error() }}</p> }
 
         @if (addedToCart()) {
           <p class="mb-0 text-center text-sm font-semibold text-emerald-700" role="status">This item was added to your cart.</p>

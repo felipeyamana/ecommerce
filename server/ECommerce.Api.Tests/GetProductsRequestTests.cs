@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using ECommerce.Api.Products;
 using Xunit;
 
@@ -70,8 +71,19 @@ public sealed class GetProductsRequestTests
 
     private static IReadOnlyList<ValidationResult> Validate(GetProductsRequest request)
     {
-        var results = new List<ValidationResult>();
-        Validator.TryValidateObject(request, new ValidationContext(request), results, validateAllProperties: true);
-        return results;
+        // Decimal RangeAttribute limits use dot-separated literals. Keep these
+        // contract tests deterministic across developer and CI machine locales.
+        var previousCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            var results = new List<ValidationResult>();
+            Validator.TryValidateObject(request, new ValidationContext(request), results, validateAllProperties: true);
+            return results;
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = previousCulture;
+        }
     }
 }
