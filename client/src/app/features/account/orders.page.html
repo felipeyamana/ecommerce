@@ -1,11 +1,92 @@
-<main class="mx-auto w-[min(calc(100%-2rem),60rem)] py-10 sm:py-14">
-  <p class="mb-2 text-sm font-bold text-blue-700">Your account</p>
-  <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Orders</h1>
+<main class="mx-auto w-[min(calc(100%-2rem),68rem)] py-10 sm:py-14">
+  <div>
+    <p class="mb-2 text-sm font-bold text-blue-700">Your account</p>
+    <h1 class="m-0 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Orders</h1>
+    <p class="mt-2 mb-0 text-slate-500">Review your purchases and their current status.</p>
+  </div>
 
-  <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-    <div class="mx-auto grid size-14 place-items-center rounded-full bg-blue-50 text-2xl" aria-hidden="true">□</div>
-    <h2 class="mt-5 text-xl font-bold text-slate-900">No orders to show</h2>
-    <p class="text-slate-500">Your order history will appear here.</p>
-    <a class="mt-3 inline-block rounded-xl bg-blue-700 px-5 py-3 font-bold text-white no-underline hover:bg-blue-800" routerLink="/">Browse products</a>
-  </section>
+  @if (error()) {
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+      <span>{{ error() }}</span>
+      <button class="font-bold underline" type="button" (click)="load(orders()?.page ?? 1)">Reload orders</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <section class="mt-8 grid animate-pulse gap-4" aria-label="Loading orders" aria-busy="true">
+      <div class="h-36 rounded-2xl bg-slate-200"></div>
+      <div class="h-36 rounded-2xl bg-slate-200"></div>
+    </section>
+  } @else if (orders()?.items?.length === 0) {
+    <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+      <div class="mx-auto grid size-14 place-items-center rounded-full bg-blue-50 text-2xl text-blue-700" aria-hidden="true">□</div>
+      <h2 class="mt-5 text-xl font-bold text-slate-900">No orders to show</h2>
+      <p class="text-slate-500">Your order history will appear here after your first checkout.</p>
+      <a class="mt-3 inline-block rounded-xl bg-blue-700 px-5 py-3 font-bold text-white no-underline hover:bg-blue-800" routerLink="/">Browse products</a>
+    </section>
+  } @else if (orders(); as result) {
+    <section class="mt-8 grid gap-4" aria-label="Order history">
+      @for (order of result.items; track order.id) {
+        <article class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="m-0 text-xs font-bold uppercase tracking-wider text-slate-400">Order</p>
+              <p class="mt-1 mb-0 break-all font-mono text-sm font-semibold text-slate-700">{{ order.id }}</p>
+            </div>
+            <span [class]="'rounded-full px-3 py-1.5 text-xs font-bold ' + statusClasses(order.status)">
+              {{ order.status }}
+            </span>
+          </div>
+
+          <dl class="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-slate-100 pt-5 sm:grid-cols-3">
+            <div>
+              <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Placed</dt>
+              <dd class="mt-1 ml-0 font-semibold text-slate-700">{{ order.createdAtUtc | date: 'mediumDate' }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Items</dt>
+              <dd class="mt-1 ml-0 font-semibold text-slate-700">{{ order.totalQuantity }}</dd>
+            </div>
+            <div class="col-span-2 sm:col-span-1 sm:text-right">
+              <dt class="text-xs font-bold uppercase tracking-wide text-slate-400">Total</dt>
+              <dd class="mt-1 ml-0 text-lg font-extrabold text-slate-900">
+                {{ order.grandTotal | currency: order.currencyCode : 'symbol' : '1.2-2' }}
+              </dd>
+            </div>
+          </dl>
+
+          <div class="mt-5 flex justify-end border-t border-slate-100 pt-4">
+            <a
+              class="rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-bold text-blue-700 no-underline transition hover:border-blue-300 hover:bg-blue-50"
+              [routerLink]="['/orders', order.id]"
+            >
+              View details
+            </a>
+          </div>
+        </article>
+      }
+    </section>
+
+    @if (result.totalPages > 1) {
+      <nav class="mt-6 flex items-center justify-between gap-4" aria-label="Order history pages">
+        <button
+          class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-45"
+          type="button"
+          [disabled]="result.page <= 1 || loading()"
+          (click)="load(result.page - 1)"
+        >
+          Previous
+        </button>
+        <span class="text-sm font-semibold text-slate-500">Page {{ result.page }} of {{ result.totalPages }}</span>
+        <button
+          class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-45"
+          type="button"
+          [disabled]="result.page >= result.totalPages || loading()"
+          (click)="load(result.page + 1)"
+        >
+          Next
+        </button>
+      </nav>
+    }
+  }
 </main>

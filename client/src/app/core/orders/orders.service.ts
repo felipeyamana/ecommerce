@@ -1,10 +1,27 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 export interface CreateOrderRequest {
   addressId: string;
   cartVersion: string;
+}
+
+export interface OrderSummary {
+  id: string;
+  status: string;
+  currencyCode: string;
+  grandTotal: number;
+  totalQuantity: number;
+  createdAtUtc: string;
+}
+
+export interface PagedOrders {
+  items: OrderSummary[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 export interface OrderShippingAddress {
@@ -57,6 +74,11 @@ export interface CheckoutSession {
 export class OrdersService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = '/api/orders';
+
+  list(page = 1, pageSize = 20): Observable<PagedOrders> {
+    const params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    return this.http.get<PagedOrders>(this.apiUrl, { params });
+  }
 
   create(request: CreateOrderRequest): Observable<Order> {
     return this.http.post<Order>(this.apiUrl, request);

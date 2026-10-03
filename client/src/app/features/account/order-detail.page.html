@@ -1,0 +1,155 @@
+<main class="mx-auto w-[min(calc(100%-2rem),72rem)] py-10 sm:py-14">
+  <a class="inline-flex items-center gap-2 text-sm font-bold text-blue-700 no-underline hover:underline" routerLink="/orders">
+    <span aria-hidden="true">←</span> Back to orders
+  </a>
+
+  @if (error()) {
+    <section class="mt-8 rounded-2xl border border-rose-200 bg-rose-50 p-6" role="alert">
+      <h1 class="m-0 text-xl font-extrabold text-rose-900">Order unavailable</h1>
+      <p class="mt-2 mb-5 text-rose-800">{{ error() }}</p>
+      <div class="flex flex-wrap gap-3">
+        <button class="rounded-xl bg-rose-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-800" type="button" (click)="load()">
+          Try again
+        </button>
+        <a class="rounded-xl border border-rose-300 px-4 py-2.5 text-sm font-bold text-rose-800 no-underline hover:bg-rose-100" routerLink="/orders">
+          Return to orders
+        </a>
+      </div>
+    </section>
+  }
+
+  @if (loading()) {
+    <section class="mt-8 animate-pulse space-y-5" aria-label="Loading order details" aria-busy="true">
+      <div class="h-40 rounded-2xl bg-slate-200"></div>
+      <div class="h-72 rounded-2xl bg-slate-200"></div>
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div class="h-64 rounded-2xl bg-slate-200"></div>
+        <div class="h-64 rounded-2xl bg-slate-200"></div>
+      </div>
+    </section>
+  } @else if (order(); as detail) {
+    <header class="mt-7 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div class="flex flex-wrap items-start justify-between gap-5">
+        <div class="min-w-0">
+          <p class="mb-2 text-sm font-bold text-blue-700">Order details</p>
+          <h1 class="m-0 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Order {{ detail.id }}</h1>
+          <p class="mt-2 mb-0 text-sm text-slate-500">Placed {{ detail.createdAtUtc | date: 'medium' }}</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <span [class]="'rounded-full px-3 py-1.5 text-xs font-bold ' + orderStatusClasses(detail.status)">
+            Order: {{ detail.status }}
+          </span>
+          <span [class]="'rounded-full px-3 py-1.5 text-xs font-bold ' + paymentStatusClasses(detail.paymentStatus)">
+            Payment: {{ detail.paymentStatus }}
+          </span>
+        </div>
+      </div>
+
+      <dl class="mt-6 grid gap-4 border-t border-slate-100 pt-5 text-sm sm:grid-cols-3">
+        <div>
+          <dt class="font-bold text-slate-400">Customer email</dt>
+          <dd class="mt-1 ml-0 break-all font-semibold text-slate-700">{{ detail.customerEmail }}</dd>
+        </div>
+        <div>
+          <dt class="font-bold text-slate-400">Last updated</dt>
+          <dd class="mt-1 ml-0 font-semibold text-slate-700">{{ detail.updatedAtUtc | date: 'medium' }}</dd>
+        </div>
+        <div>
+          <dt class="font-bold text-slate-400">Paid</dt>
+          <dd class="mt-1 ml-0 font-semibold text-slate-700">
+            {{ detail.paidAtUtc ? (detail.paidAtUtc | date: 'medium') : 'Not yet' }}
+          </dd>
+        </div>
+      </dl>
+    </header>
+
+    <section class="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-labelledby="order-items-title">
+      <div class="border-b border-slate-100 px-6 py-5 sm:px-8">
+        <h2 class="m-0 text-xl font-extrabold text-slate-900" id="order-items-title">Items</h2>
+        <p class="mt-1 mb-0 text-sm text-slate-500">Prices captured when this order was placed.</p>
+      </div>
+
+      <div class="divide-y divide-slate-100">
+        @for (item of detail.items; track $index) {
+          <article class="grid gap-4 px-6 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-8">
+            <div class="min-w-0">
+              @if (item.productId) {
+                <a class="font-extrabold text-slate-900 no-underline hover:text-blue-700" [routerLink]="['/products', item.productId]">
+                  {{ item.productName }}
+                </a>
+              } @else {
+                <h3 class="m-0 text-base font-extrabold text-slate-900">{{ item.productName }}</h3>
+              }
+              @if (item.productExternalId) {
+                <p class="mt-1 mb-0 text-xs text-slate-400">Reference: {{ item.productExternalId }}</p>
+              }
+              <p class="mt-2 mb-0 text-sm text-slate-600">
+                {{ item.quantity }} × {{ item.unitPrice | currency: detail.currencyCode : 'symbol' : '1.2-2' }}
+              </p>
+              @if (item.discountAmount > 0) {
+                <p class="mt-1 mb-0 text-xs font-semibold text-emerald-700">
+                  Discount: −{{ item.discountAmount | currency: detail.currencyCode : 'symbol' : '1.2-2' }}
+                </p>
+              }
+            </div>
+            <p class="m-0 text-lg font-extrabold text-slate-900 sm:text-right">
+              {{ item.lineTotal | currency: detail.currencyCode : 'symbol' : '1.2-2' }}
+            </p>
+          </article>
+        }
+      </div>
+    </section>
+
+    <div class="mt-5 grid items-start gap-5 md:grid-cols-2">
+      <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="shipping-title">
+        <h2 class="m-0 text-xl font-extrabold text-slate-900" id="shipping-title">Delivery address</h2>
+        <p class="mt-4 mb-0 font-bold text-slate-800">{{ detail.shippingAddress.recipientName }}</p>
+        <address class="mt-2 not-italic leading-7 text-slate-600">
+          <span class="block">{{ detail.shippingAddress.addressLine1 }}</span>
+          @if (detail.shippingAddress.addressLine2) {
+            <span class="block">{{ detail.shippingAddress.addressLine2 }}</span>
+          }
+          <span class="block">
+            {{ detail.shippingAddress.city }}, {{ detail.shippingAddress.region }} {{ detail.shippingAddress.postalCode }}
+          </span>
+          <span class="block uppercase">{{ detail.shippingAddress.countryCode }}</span>
+        </address>
+        @if (detail.shippingAddress.phoneNumber) {
+          <p class="mt-4 mb-0 text-sm text-slate-600">
+            Phone:
+            @if (detail.shippingAddress.phoneRegionCode) {
+              <span class="font-semibold">({{ detail.shippingAddress.phoneRegionCode }}) </span>
+            }
+            <span class="font-semibold">{{ detail.shippingAddress.phoneNumber }}</span>
+          </p>
+        }
+      </section>
+
+      <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="summary-title">
+        <h2 class="m-0 text-xl font-extrabold text-slate-900" id="summary-title">Order summary</h2>
+        <dl class="mt-5 grid gap-3 text-sm">
+          <div class="flex justify-between gap-4">
+            <dt class="text-slate-500">Subtotal</dt>
+            <dd class="m-0 font-semibold text-slate-800">{{ detail.subtotal | currency: detail.currencyCode : 'symbol' : '1.2-2' }}</dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-slate-500">Discounts</dt>
+            <dd class="m-0 font-semibold text-slate-800">−{{ detail.discountTotal | currency: detail.currencyCode : 'symbol' : '1.2-2' }}</dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-slate-500">Shipping</dt>
+            <dd class="m-0 font-semibold text-slate-800">{{ detail.shippingTotal | currency: detail.currencyCode : 'symbol' : '1.2-2' }}</dd>
+          </div>
+          <div class="flex justify-between gap-4">
+            <dt class="text-slate-500">Tax</dt>
+            <dd class="m-0 font-semibold text-slate-800">{{ detail.taxTotal | currency: detail.currencyCode : 'symbol' : '1.2-2' }}</dd>
+          </div>
+          <div class="mt-2 flex justify-between gap-4 border-t border-slate-100 pt-4 text-lg">
+            <dt class="font-extrabold text-slate-900">Total</dt>
+            <dd class="m-0 font-extrabold text-slate-900">{{ detail.grandTotal | currency: detail.currencyCode : 'symbol' : '1.2-2' }}</dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+  }
+</main>

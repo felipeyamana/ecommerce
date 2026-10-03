@@ -4,6 +4,12 @@ namespace ECommerce.Api.Products;
 
 public interface IOrdersApiClient
 {
+    Task<DownstreamApiResult<PagedOrdersResponse>> ListAsync(
+        ClaimsPrincipal user,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken);
+
     Task<DownstreamApiResult<OrderDetailResponse>> CreateAsync(
         ClaimsPrincipal user,
         CreateOrderRequest request,

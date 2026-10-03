@@ -4,6 +4,21 @@ public sealed record CreateOrderRequest(
     Guid AddressId,
     Guid? CartVersion);
 
+public sealed record OrderSummaryResponse(
+    Guid Id,
+    string Status,
+    string CurrencyCode,
+    decimal GrandTotal,
+    int TotalQuantity,
+    DateTime CreatedAtUtc);
+
+public sealed record PagedOrdersResponse(
+    IReadOnlyList<OrderSummaryResponse> Items,
+    int Page,
+    int PageSize,
+    int TotalCount,
+    int TotalPages);
+
 public sealed record OrderShippingAddressResponse(
     string RecipientName,
     string? PhoneNumber,

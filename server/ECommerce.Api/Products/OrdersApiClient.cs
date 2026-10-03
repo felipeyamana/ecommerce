@@ -12,6 +12,20 @@ internal sealed class OrdersApiClient(
     private const string OrdersPath = "api/orders";
     private static readonly string[] OrderRole = ["OrderUser"];
 
+    public Task<DownstreamApiResult<PagedOrdersResponse>> ListAsync(
+        ClaimsPrincipal user,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken) =>
+        SendAsync<PagedOrdersResponse>(
+            user,
+            HttpMethod.Get,
+            $"{OrdersPath}?page={page}&pageSize={pageSize}",
+            null,
+            ["orders:read"],
+            "The orders could not be loaded.",
+            cancellationToken);
+
     public Task<DownstreamApiResult<OrderDetailResponse>> CreateAsync(
         ClaimsPrincipal user,
         CreateOrderRequest request,

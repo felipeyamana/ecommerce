@@ -1,8 +1,10 @@
 # Test scope
 
-Full API integration tests are limited to critical flows: successful login,
+Full BFF integration tests are limited to critical flows: successful login,
 registration/session/logout, and a shared authentication/antiforgery smoke test.
-Add order/checkout integration coverage when those endpoints are implemented.
+Order and checkout business-flow integration coverage belongs to the
+[Products API](https://github.com/felipeyamana/products-api);
+this repository keeps focused HTTP-client and token-forwarding tests for those calls.
 `AuthTests` is tagged with `Category=Integration` and shares one application host;
 each case uses its own client and cookies.
 
