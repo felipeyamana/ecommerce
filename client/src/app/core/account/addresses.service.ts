@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
-import { finalize, Observable, of, shareReplay, switchMap, tap } from 'rxjs';
+import { finalize, map, Observable, of, shareReplay, switchMap, tap } from 'rxjs';
 
 export interface CustomerAddress {
   id: string;
@@ -65,8 +65,12 @@ export class AddressesService {
     return request;
   }
 
-  create(address: CreateCustomerAddress): Observable<CustomerAddress[]> {
-    return this.http.post<CustomerAddress>(this.apiUrl, address).pipe(switchMap(() => this.load(true)));
+  create(address: CreateCustomerAddress): Observable<CustomerAddress> {
+    return this.http.post<CustomerAddress>(this.apiUrl, address).pipe(
+      switchMap((created) => this.load(true).pipe(
+        map((addresses) => addresses.find((candidate) => candidate.id === created.id) ?? created),
+      )),
+    );
   }
 
   update(addressId: string, address: UpdateCustomerAddress): Observable<CustomerAddress[]> {

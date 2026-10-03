@@ -101,13 +101,7 @@
             <a class="text-sm font-bold text-blue-700 no-underline hover:underline" routerLink="/addresses">Manage addresses</a>
           </div>
 
-          @if (addressesService.addresses().length === 0) {
-            <div class="mt-6 rounded-xl border border-dashed border-slate-300 p-8 text-center">
-              <h3 class="mt-0 text-lg font-bold text-slate-900">Add a delivery address</h3>
-              <p class="text-sm text-slate-600">An address is required before an order can be created.</p>
-              <a class="mt-2 inline-block rounded-xl bg-blue-700 px-5 py-3 font-bold text-white no-underline hover:bg-blue-800" routerLink="/addresses">Add address</a>
-            </div>
-          } @else {
+          @if (addressesService.addresses().length > 0) {
             <fieldset class="mt-6 grid gap-4 border-0 p-0">
               <legend class="sr-only">Select a delivery address</legend>
               @for (address of addressesService.addresses(); track address.id) {
@@ -123,7 +117,7 @@
                     name="deliveryAddress"
                     [value]="address.id"
                     [checked]="selectedAddressId() === address.id"
-                    [disabled]="submitting()"
+                    [disabled]="submitting() || savingAddress()"
                     (change)="selectAddress(address.id)"
                   />
                   <span class="min-w-0 flex-1">
@@ -142,6 +136,30 @@
                 </label>
               }
             </fieldset>
+          }
+
+          @if (addressError()) {
+            <p class="mt-5 rounded-xl bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert">{{ addressError() }}</p>
+          }
+
+          @if (addressFormOpen()) {
+            <div class="mt-6 rounded-xl border border-blue-200 bg-blue-50/30 p-5 sm:p-6">
+              <app-address-form
+                [defaultSelected]="addressesService.addresses().length === 0"
+                [saving]="savingAddress()"
+                (submitted)="saveAddress($event)"
+                (cancelled)="cancelAddAddress()"
+              />
+            </div>
+          } @else {
+            <button
+              class="mt-5 rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-bold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              [disabled]="submitting() || savingAddress()"
+              (click)="startAddAddress()"
+            >
+              {{ addressesService.addresses().length === 0 ? 'Add a delivery address' : 'Add another address' }}
+            </button>
           }
         </section>
 

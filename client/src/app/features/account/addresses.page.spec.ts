@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import {
@@ -8,6 +9,7 @@ import {
   UpdateCustomerAddress,
 } from '../../core/account/addresses.service';
 import { AddressesPage } from './addresses.page';
+import { AddressFormComponent } from '../../shared/address-form/address-form.component';
 
 describe('AddressesPage', () => {
   const home: CustomerAddress = {
@@ -85,7 +87,10 @@ describe('AddressesPage', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance;
     component.startAdd();
-    component.form.setValue({
+    fixture.detectChanges();
+    const addressForm = fixture.debugElement.query(By.directive(AddressFormComponent))
+      .componentInstance as AddressFormComponent;
+    addressForm.form.setValue({
       label: '  Family  ',
       recipientName: '  Sam Shopper  ',
       addressLine1: '  300 Pine Street  ',
@@ -97,7 +102,7 @@ describe('AddressesPage', () => {
       isDefault: false,
     });
 
-    component.save();
+    addressForm.submit();
 
     expect(create).toHaveBeenCalledWith({
       label: 'Family',
