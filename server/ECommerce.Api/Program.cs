@@ -69,6 +69,13 @@ builder.Services.AddHttpClient<ICustomerAddressesApiClient, CustomerAddressesApi
 })
     .AddHttpMessageHandler<ProductsApiExceptionHandler>()
     .AddProductsApiResilience();
+builder.Services.AddHttpClient<IOrdersApiClient, OrdersApiClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<ProductsApiOptions>>().Value;
+    client.BaseAddress = options.BaseUrl;
+})
+    .AddHttpMessageHandler<ProductsApiExceptionHandler>()
+    .AddProductsApiResilience();
 
 builder.Services.AddHttpClient<IFavoritesApiClient, FavoritesApiClient>((serviceProvider, client) =>
 {

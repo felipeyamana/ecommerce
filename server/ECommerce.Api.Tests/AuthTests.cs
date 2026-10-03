@@ -59,7 +59,13 @@ public sealed class AuthTests(AuthApiFixture fixture) : IClassFixture<AuthApiFix
     public async Task ProtectedEndpointsRequireAuthenticationAndMutationsRequireAntiforgery()
     {
         using var client = fixture.CreateClient();
-        foreach (var path in new[] { "/api/auth/me", "/api/cart", "/api/favorites" })
+        foreach (var path in new[]
+        {
+            "/api/auth/me",
+            "/api/cart",
+            "/api/favorites",
+            $"/api/orders/{Guid.NewGuid():D}"
+        })
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/auth/register", new
         {
@@ -78,6 +84,13 @@ public sealed class AuthTests(AuthApiFixture fixture) : IClassFixture<AuthApiFix
         client.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/api/favorites/42", new { })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.DeleteAsync("/api/favorites/42")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/orders", new
+        {
+            addressId = Guid.NewGuid(), cartVersion = Guid.NewGuid()
+        })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(
+            $"/api/orders/{Guid.NewGuid():D}/checkout",
+            null)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/auth/logout", new { })).StatusCode);
     }
 
