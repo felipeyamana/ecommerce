@@ -2,7 +2,7 @@ import { CurrencyPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize, Observable } from 'rxjs';
 import { Cart, CartService } from '../../core/cart/cart.service';
 import { Product, ProductsService } from '../../core/products/products.service';
@@ -17,6 +17,7 @@ import { productImage } from '../../core/products/product-image';
 export class CartPage {
   readonly cartService = inject(CartService);
   private readonly productsService = inject(ProductsService);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly requestedProducts = new Set<number>();
   readonly productDetails = signal<ReadonlyMap<number, Product>>(new Map());
@@ -24,6 +25,7 @@ export class CartPage {
   readonly loading = signal(true);
   readonly changingProductId = signal<number | null>(null);
   readonly clearing = signal(false);
+  readonly proceedingToCheckout = signal(false);
   readonly error = signal('');
   readonly hasChanges = computed(() =>
     this.cartService.cart()?.items.some((item) => item.priceChanged || !item.isAvailable) ?? false,
@@ -82,6 +84,18 @@ export class CartPage {
 
     this.clearing.set(true);
     this.runMutation(this.cartService.clear(cart.version), () => this.clearing.set(false));
+  }
+
+  proceedToCheckout(): void {
+    if (this.proceedingToCheckout() || this.hasChanges() || !this.cartService.cart()?.items.length) return;
+
+    this.proceedingToCheckout.set(true);
+    void this.router.navigate(['/checkout']).then(
+      (navigated) => {
+        if (!navigated) this.proceedingToCheckout.set(false);
+      },
+      () => this.proceedingToCheckout.set(false),
+    );
   }
 
   private runMutation(request: Observable<Cart>, done: () => void): void {

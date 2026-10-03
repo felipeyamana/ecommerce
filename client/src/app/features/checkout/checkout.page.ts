@@ -19,12 +19,16 @@ import { AddressesService } from '../../core/account/addresses.service';
 import { CartService } from '../../core/cart/cart.service';
 import { Order, OrdersService } from '../../core/orders/orders.service';
 import { StripeCheckoutService } from '../../core/payments/stripe-checkout.service';
+import {
+  AddressFormComponent,
+  AddressFormSubmission,
+} from '../../shared/address-form/address-form.component';
 
 type PaymentState = 'idle' | 'loading' | 'ready' | 'processing' | 'paid';
 
 @Component({
   selector: 'app-checkout-page',
-  imports: [CurrencyPipe, RouterLink],
+  imports: [AddressFormComponent, CurrencyPipe, RouterLink],
   templateUrl: './checkout.page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [StripeCheckoutService],
@@ -48,10 +52,13 @@ export class CheckoutPage implements OnDestroy {
 
   readonly loading = signal(true);
   readonly submitting = signal(false);
+  readonly savingAddress = signal(false);
+  readonly addressFormOpen = signal(false);
   readonly selectedAddressId = signal<string | null>(null);
   readonly createdOrder = signal<Order | null>(null);
   readonly paymentState = signal<PaymentState>('idle');
   readonly paymentError = signal('');
+  readonly addressError = signal('');
   readonly error = signal('');
 
   readonly cartNeedsReview = computed(() =>
@@ -62,6 +69,7 @@ export class CheckoutPage implements OnDestroy {
     const cart = this.cartService.cart();
     return !this.loading() &&
       !this.submitting() &&
+      !this.savingAddress() &&
       !this.createdOrder() &&
       !!this.selectedAddressId() &&
       !!cart?.items.length &&
@@ -94,6 +102,7 @@ export class CheckoutPage implements OnDestroy {
               addresses.find((address) => address.isDefault)?.id ?? addresses[0]?.id ?? null,
             );
           }
+          if (addresses.length === 0) this.addressFormOpen.set(true);
         },
         error: (error: HttpErrorResponse) => {
           this.error.set(error.error?.message ?? 'We could not prepare checkout. Please try again.');
@@ -102,9 +111,38 @@ export class CheckoutPage implements OnDestroy {
   }
 
   selectAddress(addressId: string): void {
-    if (!this.submitting() && !this.createdOrder()) {
+    if (!this.submitting() && !this.savingAddress() && !this.createdOrder()) {
       this.selectedAddressId.set(addressId);
     }
+  }
+
+  startAddAddress(): void {
+    if (this.submitting() || this.savingAddress() || this.createdOrder()) return;
+    this.addressError.set('');
+    this.addressFormOpen.set(true);
+  }
+
+  cancelAddAddress(): void {
+    if (!this.savingAddress()) this.addressFormOpen.set(false);
+  }
+
+  saveAddress(submission: AddressFormSubmission): void {
+    if (submission.kind !== 'create' || this.savingAddress() || this.createdOrder()) return;
+
+    this.savingAddress.set(true);
+    this.addressError.set('');
+    this.addressesService
+      .create(submission.request)
+      .pipe(finalize(() => this.savingAddress.set(false)))
+      .subscribe({
+        next: (address) => {
+          this.selectedAddressId.set(address.id);
+          this.addressFormOpen.set(false);
+        },
+        error: (error: HttpErrorResponse) => {
+          this.addressError.set(error.error?.message ?? 'We could not save your delivery address.');
+        },
+      });
   }
 
   createOrder(): void {

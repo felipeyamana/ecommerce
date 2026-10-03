@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -7,6 +8,7 @@ import { Cart, CartService } from '../../core/cart/cart.service';
 import { Order, OrdersService } from '../../core/orders/orders.service';
 import { StripeCheckoutService } from '../../core/payments/stripe-checkout.service';
 import { CheckoutPage } from './checkout.page';
+import { AddressFormComponent } from '../../shared/address-form/address-form.component';
 
 describe('CheckoutPage', () => {
   const home: CustomerAddress = {
@@ -60,6 +62,7 @@ describe('CheckoutPage', () => {
   let getOrder: ReturnType<typeof vi.fn>;
   let mountStripe: ReturnType<typeof vi.fn>;
   let reset: ReturnType<typeof vi.fn>;
+  let createAddress: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     cartState.set(initialCart);
@@ -73,6 +76,22 @@ describe('CheckoutPage', () => {
     getOrder = vi.fn(() => of({ ...order, paymentStatus: 'Paid' }));
     mountStripe = vi.fn(() => Promise.resolve());
     reset = vi.fn(() => cartState.set(null));
+    createAddress = vi.fn((request) => {
+      const created = {
+        ...home,
+        id: '44444444-4444-4444-4444-444444444444',
+        label: request.label,
+        recipientName: request.recipientName,
+        addressLine1: request.addressLine1,
+        city: request.city,
+        region: request.region,
+        postalCode: request.postalCode,
+        countryCode: request.countryCode,
+        isDefault: request.isDefault,
+      };
+      addressesState.set([created]);
+      return of(created);
+    });
 
     await TestBed.configureTestingModule({
       imports: [CheckoutPage],
@@ -91,6 +110,7 @@ describe('CheckoutPage', () => {
           useValue: {
             addresses: addressesState.asReadonly(),
             load: vi.fn(() => of(addressesState())),
+            create: createAddress,
           },
         },
         {
@@ -154,5 +174,42 @@ describe('CheckoutPage', () => {
 
     expect(create).not.toHaveBeenCalled();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Review cart');
+  });
+
+  it('creates and selects a delivery address without leaving checkout', () => {
+    addressesState.set([]);
+    const fixture = TestBed.createComponent(CheckoutPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    const addressForm = fixture.debugElement.query(By.directive(AddressFormComponent))
+      .componentInstance as AddressFormComponent;
+
+    expect(component.addressFormOpen()).toBe(true);
+    expect(component.selectedAddressId()).toBeNull();
+    addressForm.form.setValue({
+      label: ' Home ',
+      recipientName: ' Alex Shopper ',
+      addressLine1: ' 100 Main Street ',
+      addressLine2: '',
+      city: ' Seattle ',
+      region: ' WA ',
+      postalCode: ' 98101 ',
+      countryCode: 'us',
+      isDefault: true,
+    });
+
+    addressForm.submit();
+    fixture.detectChanges();
+
+    expect(createAddress).toHaveBeenCalledWith(expect.objectContaining({
+      recipientName: 'Alex Shopper',
+      addressLine1: '100 Main Street',
+      countryCode: 'US',
+      isDefault: true,
+    }));
+    expect(component.selectedAddressId()).toBe('44444444-4444-4444-4444-444444444444');
+    expect(component.addressFormOpen()).toBe(false);
+    expect(component.canCreateOrder()).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('100 Main Street');
   });
 });
