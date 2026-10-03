@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { CheckoutSession, Order, OrdersService } from './orders.service';
+import { CheckoutSession, Order, OrdersService, PagedOrders } from './orders.service';
 
 describe('OrdersService', () => {
   let service: OrdersService;
@@ -14,6 +14,16 @@ describe('OrdersService', () => {
   });
 
   afterEach(() => http.verify());
+
+  it('loads a page of the current customer orders', () => {
+    const orders = { items: [], page: 2, pageSize: 10, totalCount: 11, totalPages: 2 } as PagedOrders;
+
+    service.list(2, 10).subscribe((loaded) => expect(loaded).toBe(orders));
+
+    const call = http.expectOne('/api/orders?page=2&pageSize=10');
+    expect(call.request.method).toBe('GET');
+    call.flush(orders);
+  });
 
   it('creates an order from the selected address and current cart version', () => {
     const request = {

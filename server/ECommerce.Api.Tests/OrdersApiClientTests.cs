@@ -19,6 +19,35 @@ public sealed class OrdersApiClientTests
     private static readonly Guid OrderId = Guid.Parse("bbbbbbbb-cccc-dddd-eeee-ffffffffffff");
 
     [Fact]
+    public async Task ListsCurrentCustomerOrdersWithReadOnlyToken()
+    {
+        var handler = new RecordingHandler(_ => JsonResponse(
+            HttpStatusCode.OK,
+            new PagedOrdersResponse(
+                [new OrderSummaryResponse(OrderId, "Confirmed", "USD", 25m, 1, DateTime.UtcNow)],
+                2,
+                10,
+                11,
+                2)));
+        using var tokenService = CreateTokenService();
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://products.example")
+        };
+        var client = new OrdersApiClient(httpClient, tokenService);
+
+        var result = await client.ListAsync(CreateUser(), 2, 10, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(11, result.Value!.TotalCount);
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal("/api/orders", request.Path);
+        Assert.Equal("?page=2&pageSize=10", request.Query);
+        AssertToken(request.BearerToken, "orders:read");
+    }
+
+    [Fact]
     public async Task ProxiesPurchaseFlowWithTheExpectedPathsAndLeastPrivilegeTokens()
     {
         var handler = new RecordingHandler(request =>
@@ -175,6 +204,7 @@ public sealed class OrdersApiClientTests
             Requests.Add(new RecordedRequest(
                 request.Method,
                 request.RequestUri!.AbsolutePath,
+                request.RequestUri.Query,
                 request.Headers.Authorization!.Parameter!,
                 request.Content is null
                     ? null
@@ -187,6 +217,7 @@ public sealed class OrdersApiClientTests
     private sealed record RecordedRequest(
         HttpMethod Method,
         string Path,
+        string Query,
         string BearerToken,
         string? Body);
 }

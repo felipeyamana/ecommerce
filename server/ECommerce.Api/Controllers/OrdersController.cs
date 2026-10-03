@@ -9,6 +9,21 @@ namespace ECommerce.Api.Controllers;
 [Route("api/[controller]")]
 public sealed class OrdersController(IOrdersApiClient ordersApiClient) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedOrdersResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default) =>
+        Respond(await ordersApiClient.ListAsync(
+            User,
+            page,
+            pageSize,
+            cancellationToken));
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     [ProducesResponseType(typeof(OrderDetailResponse), StatusCodes.Status201Created)]
